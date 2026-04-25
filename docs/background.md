@@ -30,17 +30,17 @@ documaris is the "paper layer" in a four-product stack:
 
 | Product | Role |
 |---|---|
-| **maridb** | Data layer — vessel/voyage/cargo/AIS ingestion and transformation pipelines; Parquet/JSON data lake on Cloudflare R2 |
-| **arktrace** | Analytics layer — shadow fleet analysis, causal inference scoring, AIS-based watchlist; analyst dashboard (DuckDB-WASM) |
+| **maridb** | Data layer — vessel/voyage/cargo/AIS ingestion and transformation pipelines; Parquet/JSON data lake on Cloudflare R2. [github.com/edgesentry/maridb](https://github.com/edgesentry/maridb) |
+| **arktrace** | Shadow fleet detection application — causal inference scoring, ownership graph analysis, analyst dashboard. Reads AIS and vessel data from maridb. [github.com/edgesentry/arktrace](https://github.com/edgesentry/arktrace) |
 | **edgesentry** | Physical layer — robotic inspection, sensor deployment, audit firmware (Rust, `edgesentry-rs`) |
 | **documaris** | Document layer — port call package generation, compliance checking, PDF rendering |
 
-maridb is the shared data foundation. documaris reads vessel/voyage/cargo/AIS data from maridb's R2. arktrace reads the same underlying data for shadow fleet analysis and scoring. In Phase 1 and 2, both operate without hardware; edgesentry enters in Phase 3.
+maridb is the shared data foundation — it collects and transforms raw vessel, voyage, cargo, and AIS data into a structured Parquet data lake on Cloudflare R2. documaris reads from maridb's R2 to generate port call documents. arktrace reads the same maridb data as the input to its shadow fleet detection pipeline. In Phase 1 and 2, both operate without hardware; edgesentry enters in Phase 3.
 
 ```
 Phase 1 & 2:
   maridb ──→ documaris   (vessel/voyage/cargo/AIS → port call documents)
-  maridb ──→ arktrace    (AIS/sanctions/trade → shadow fleet analysis)
+  maridb ──→ arktrace    (AIS/vessel data → shadow fleet detection)
 
 Phase 3 & 4:
   edgesentry ──→ maridb ──→ documaris
@@ -58,17 +58,38 @@ Phase 3 & 4:
 | **Commercial** | Singapore port entry package (MPA Port+, ICA, TradeNet, SFA) | Closed — subscription | ✓ MVP |
 | Phase 2 roadmap | Japan port entry package (NACCS — Hakata / Tokyo) | Closed — subscription or per port-call | Post-PIER71 |
 
-Internationally standardised forms are free; highly localised, port-specific formats are paid. The open source release doubles as an industry contribution signal to MPA Singapore, the PIER71 programme sponsor and the priority institutional pilot target. Japan localisation is a validated Phase 2 opportunity, excluded from the PIER71 MVP scope to keep the sprint achievable.
+Internationally standardised forms are free; highly localised, port-specific formats are paid. The open source release doubles as an industry contribution signal to MPA Singapore, the PIER71 programme sponsor and the priority institutional pilot target. Japan localisation is an identified Phase 2 opportunity (Japan port call volume is significant and NACCS is a known integration target), excluded from the PIER71 MVP scope to keep the sprint achievable. No Japanese ship agent pilot has been identified yet; validation is a Phase 2 pre-condition.
 
 ---
 
 ## Market sizing
 
-| Market | 2025 | Projected | CAGR |
-|---|---|---|---|
-| Intelligent Document Processing | US$3.22B | US$43.92B by 2034 | 33.6% |
-| Maritime Software | — | US$2.86B by 2035 | — |
-| Maritime Cybersecurity | US$4.25B | US$15.22B by 2033 | 13.6% |
+### Bottom-up: Singapore addressable market (SAM)
+
+| Model | Assumption | SAM (SGD/year) |
+|---|---|---|
+| Subscription — ship agents | ~1,000 Singapore-registered ship agents × SGD 300/month | **SGD 3.6M** |
+| Per-call — Singapore port entry package | 140,000 vessel calls/year × SGD 50/call average | **SGD 7.0M** |
+
+> The two models are not additive — they represent alternative pricing structures for the same market. At full penetration of Singapore-registered agents on a subscription model, SAM is approximately SGD 3.6M/year. At per-call pricing across the full port call volume, SAM is approximately SGD 7.0M/year. Actual pricing will be validated with pilot customers at M3.
+
+**Use case contribution to SAM:**
+
+| Use case tier | Revenue model | SAM contribution |
+|---|---|---|
+| Open 1 (FAL Form 1) + Open 2 (FAL Form 5) | Free / MIT — acquisition funnel | SGD 0 direct; drives adoption of Commercial tier |
+| Commercial — Singapore port entry package | Subscription or per-call | SGD 3.6M–7.0M (full Singapore penetration) |
+| Phase 2 — Japan NACCS package | Per-call or subscription | Not included in PIER71 MVP SAM; Phase 2 pre-condition: identify Japan pilot customer |
+
+### Top-down: total addressable market (TAM)
+
+| Market | 2025 | Projected | CAGR | Source |
+|---|---|---|---|---|
+| Intelligent Document Processing | US$3.22B | US$43.92B by 2034 | 33.6% | MarketsandMarkets, *IDP Market Report*, 2024 |
+| Maritime Software | — | US$2.86B by 2035 | — | Grand View Research, *Maritime Software Market*, 2024 |
+| Maritime Cybersecurity | US$4.25B | US$15.22B by 2033 | 13.6% | Allied Market Research, *Maritime Cybersecurity Report*, 2023 |
+
+> TAM figures are indicative of the broader market. documaris' near-term addressable segment is port-call documentation automation for Singapore ship agents (SAM above). TAM figures become relevant as documaris expands to additional ports and jurisdictions in Phase 2+.
 
 ---
 

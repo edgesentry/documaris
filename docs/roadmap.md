@@ -70,6 +70,8 @@
   - Results published as `poc/singapore_kpi_report.md`
 - Identify MPA-connected pilot candidate via PIER71 programme (name + role confirmed)
 
+> **Customer validation dependency:** The baseline figures (32 min, 18%) are stated as hypotheses derived from informal ship agent interviews. M3 is the first milestone where these are measured against real port call cases. If baselines differ materially from the hypotheses, PoC targets will be revised and the delta disclosed in the KPI report. See [`customers.md`](customers.md) for the full list of unvalidated assumptions.
+
 ---
 
 ### Milestone 4 — Singapore polish + demo prep (Week 5)
