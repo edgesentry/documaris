@@ -36,7 +36,7 @@ This document maps each of the 10 deck evaluation criteria from the PIER71 SPC A
 
 ## Notes on notation
 
-External PIER71 challenge documents (sourced from MPA) use the notation `PIER7-02` for the cybersecurity opportunity. This proposal uses **PIER71-02** throughout for consistency with the numbering convention applied to all other opportunities (PIER71-01, PIER71-10, PIER71-11). Both refer to the same innovation opportunity: *Managing Cybersecurity Risks and Incidences*.
+External PIER71 challenge documents (available at [pier71.sg/smart-port-challenge-2026](https://pier71.sg/smart-port-challenge-2026/)) use the notation `PIER7-02` for the cybersecurity opportunity. This proposal uses **PIER71-02** throughout for consistency with the numbering convention applied to all other opportunities (PIER71-01, PIER71-10, PIER71-11). Both refer to the same innovation opportunity: *Managing Cybersecurity Risks and Incidences*.
 
 ---
 
