@@ -87,14 +87,18 @@ This connection to arktrace is unique. No competitor can make this claim.
 
 ## Use cases ranked by PIER71 evaluator impact
 
-| Rank | Use case | Criterion addressed | Demo feasibility at M3 |
-|---|---|---|---|
-| 1 | Singapore port entry package (MPA + ICA + TradeNet) from single data entry | 1 (Urgency), 5 (Validation), 9 (Domain) | Yes — field map + mock data |
-| 2 | Regulatory Alert: HIGH on expired BWM cert blocks submission | 1 (Urgency), 3 (Competitive advantage), 9 (Domain) | Yes — seed KB with real MPA circular |
-| 3 | AIS Voyage Evidence appended to port call package (arktrace connection) | 8 (IP/Defensibility), 9 (Domain), 10 (IO-11) | Yes — maridb AIS data → signed summary |
-| 4 | Cryptographic verify endpoint: `GET /audit/verify?hash=` returns voyage record | 2 (Market), 8 (IP), 10 (IO-02) | Yes — Trust Layer M2 deliverable |
-| 5 | Offline FAL Form 5 generation (PWA, no server) | 3 (Competitive advantage), 6 (Scalability) | M1 Should / M2 stretch |
-| 6 | Fleet compliance dashboard (multi-vessel Regulatory Alert view) | 6 (Scalability), 7 (Business model) | Phase 2 — not M0–M5 |
+The 4 product tiers (Open 1, Open 2, Commercial Singapore, Commercial Japan) map to the use cases below. Open 1 and Open 2 are the free acquisition funnel that drives adoption of the Commercial tier — they generate zero direct revenue but are the reason ship agents install and trust documaris before encountering the Singapore package.
+
+| Rank | Use case | Product tier | PIER71 criterion | Demo at M3 |
+|---|---|---|---|---|
+| 0 | FAL Form 1 + FAL Form 5 generated from a single vessel record | Open 1 + Open 2 (MIT, free) | 7 (Business model — funnel) | Yes — M1 core deliverable |
+| 1 | Singapore port entry package (MPA + ICA + TradeNet) from single data entry | Commercial Singapore | 1 (Urgency), 5 (Validation), 9 (Domain) | Yes — field map + mock data |
+| 2 | Regulatory Alert: HIGH on expired BWM cert blocks submission | Commercial Singapore | 1 (Urgency), 3 (Competitive advantage), 9 (Domain) | Yes — seed KB with real MPA circular |
+| 3 | AIS Voyage Evidence appended to port call package (arktrace connection) | Commercial Singapore | 8 (IP/Defensibility), 9 (Domain), 10 (IO-11) | Yes — maridb AIS data → signed summary |
+| 4 | Cryptographic verify endpoint: `GET /audit/verify?hash=` returns voyage record | Commercial Singapore | 2 (Market), 8 (IP), 10 (IO-02) | Yes — Trust Layer M2 deliverable |
+| 5 | Offline FAL Form 5 generation (PWA, no server) | Open 2 (offline path) | 3 (Competitive advantage), 6 (Scalability) | M1 Should / M2 stretch |
+| 6 | Fleet compliance dashboard (multi-vessel Regulatory Alert view) | Commercial Singapore (scale) | 6 (Scalability), 7 (Business model) | Phase 2 — not M0–M5 |
+| — | Japan NACCS package | Commercial Japan (Phase 2) | Not PIER71 scope | Phase 2 — pilot customer not yet identified |
 
 ---
 
