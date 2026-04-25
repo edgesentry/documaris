@@ -167,10 +167,10 @@
 
   "fal_form_1_completeness": {
     "total_fields": 19,
-    "direct_fill": 11,
+    "direct": 14,
     "computed": 1,
     "llm_summarise": 2,
-    "agent_entry": 3,
+    "agent_entry": 2,
     "constant": 0,
     "pii_fields": ["9 (master name)", "19 (signature)"],
     "llm_fields": ["7 (cargo description)", "17 (remarks)"]

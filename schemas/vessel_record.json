@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VesselRecord",
+  "description": "maridb DuckLake schema contract for a single vessel + voyage + cargo + AIS record",
+  "type": "object",
+  "required": ["vessel", "voyage", "cargo", "ais_summary"],
+  "additionalProperties": true,
+  "properties": {
+    "vessel": {
+      "type": "object",
+      "required": [
+        "vessel_id", "imo_number", "vessel_name", "vessel_type",
+        "flag_state", "flag_state_name", "call_sign",
+        "gross_tonnage", "net_tonnage"
+      ],
+      "properties": {
+        "vessel_id":       { "type": "string", "pattern": "^IMO[0-9]{7}$" },
+        "imo_number":      { "type": "string", "pattern": "^[0-9]{7}$" },
+        "vessel_name":     { "type": "string", "minLength": 1 },
+        "vessel_type":     { "type": "string" },
+        "flag_state":      { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "flag_state_name": { "type": "string" },
+        "call_sign":       { "type": "string" },
+        "gross_tonnage":   { "type": "number", "minimum": 0 },
+        "net_tonnage":     { "type": "number", "minimum": 0 },
+        "certificates": {
+          "type": "object",
+          "properties": {
+            "ballast_water_management": {
+              "type": "object",
+              "required": ["certificate_number", "issued_date", "expiry_date"],
+              "properties": {
+                "certificate_number": { "type": "string" },
+                "issued_date":  { "type": "string", "format": "date" },
+                "expiry_date":  { "type": ["string", "null"], "format": "date" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "voyage": {
+      "type": "object",
+      "required": [
+        "voyage_id", "vessel_id", "voyage_number",
+        "port_of_departure", "port_of_arrival",
+        "last_port_of_call", "next_port_of_call",
+        "eta_utc", "etd_utc",
+        "crew_count", "passenger_count", "stowaways_count"
+      ],
+      "properties": {
+        "voyage_id":     { "type": "string" },
+        "vessel_id":     { "type": "string", "pattern": "^IMO[0-9]{7}$" },
+        "voyage_number": { "type": "string" },
+        "port_of_departure": { "$ref": "#/$defs/port" },
+        "port_of_arrival":   { "$ref": "#/$defs/port" },
+        "last_port_of_call": { "$ref": "#/$defs/port" },
+        "next_port_of_call": { "$ref": "#/$defs/port" },
+        "eta_utc":           { "type": "string" },
+        "etd_utc":           { "type": "string" },
+        "crew_count":        { "type": "integer", "minimum": 0 },
+        "passenger_count":   { "type": "integer", "minimum": 0 },
+        "stowaways_count":   { "type": "integer", "minimum": 0 },
+        "berth_requested":   { "type": ["string", "null"] },
+        "waste_to_deliver":  { "type": "boolean" }
+      }
+    },
+    "cargo": {
+      "type": "object",
+      "required": ["voyage_id", "vessel_id", "total_cargo_tonnes", "dangerous_goods_onboard", "items"],
+      "properties": {
+        "voyage_id":              { "type": "string" },
+        "vessel_id":              { "type": "string" },
+        "total_cargo_tonnes":     { "type": "number", "minimum": 0 },
+        "dangerous_goods_onboard": { "type": "boolean" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "line_number", "description", "hs_code",
+              "quantity", "unit", "gross_weight_kg",
+              "port_of_loading", "port_of_discharge"
+            ],
+            "properties": {
+              "line_number":      { "type": "integer", "minimum": 1 },
+              "description":      { "type": "string", "minLength": 1 },
+              "hs_code":          { "type": "string" },
+              "quantity":         { "type": "number", "minimum": 0 },
+              "unit":             { "type": "string" },
+              "gross_weight_kg":  { "type": "number", "minimum": 0 },
+              "port_of_loading":  { "type": "string" },
+              "port_of_discharge": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "ais_summary": {
+      "type": "object",
+      "required": [
+        "vessel_id", "voyage_id",
+        "track_start_utc", "track_end_utc",
+        "positions_count", "ais_gap_events", "dark_period_hours"
+      ],
+      "properties": {
+        "vessel_id":         { "type": "string" },
+        "voyage_id":         { "type": "string" },
+        "track_start_utc":   { "type": "string" },
+        "track_end_utc":     { "type": "string" },
+        "positions_count":   { "type": "integer", "minimum": 0 },
+        "ais_gap_events":    { "type": "array" },
+        "dark_period_hours": { "type": "number", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "port": {
+      "type": "object",
+      "required": ["unlocode", "name", "country"],
+      "properties": {
+        "unlocode": { "type": "string", "pattern": "^[A-Z]{2}[A-Z0-9]{3}$" },
+        "name":     { "type": "string" },
+        "country":  { "type": "string", "pattern": "^[A-Z]{3}$" }
+      }
+    }
+  }
+}
