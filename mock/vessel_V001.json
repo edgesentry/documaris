@@ -1,0 +1,130 @@
+{
+  "_schema_version": "0.1.0",
+  "_note": "Mock data for M0 — matches maridb DuckLake Parquet schema. Crew PII (names, passport numbers, DOB) are excluded; crew list is handled client-side via WASM only.",
+
+  "vessel": {
+    "vessel_id": "IMO9876543",
+    "imo_number": "9876543",
+    "vessel_name": "MV PACIFIC HORIZON",
+    "vessel_type": "General Cargo",
+    "flag_state": "SGP",
+    "flag_state_name": "Singapore",
+    "call_sign": "9V1234",
+    "gross_tonnage": 8500,
+    "net_tonnage": 4200,
+    "length_overall_m": 142.0,
+    "beam_m": 21.0,
+    "max_draught_m": 8.5,
+    "classification_society": "Lloyd's Register",
+    "owner_name": "Pacific Horizon Shipping Pte Ltd",
+    "owner_country": "SGP",
+    "certificates": {
+      "safety_management": {
+        "certificate_number": "DOC-2024-001234",
+        "issued_date": "2024-03-15",
+        "expiry_date": "2029-03-14",
+        "issuing_authority": "Maritime and Port Authority of Singapore"
+      },
+      "ballast_water_management": {
+        "certificate_number": "BWM-2023-005678",
+        "issued_date": "2023-11-01",
+        "expiry_date": "2026-10-31",
+        "issuing_authority": "Lloyd's Register"
+      },
+      "international_tonnage": {
+        "certificate_number": "ITC-1969-9876543",
+        "issued_date": "2018-06-20",
+        "expiry_date": null,
+        "issuing_authority": "Lloyd's Register"
+      }
+    }
+  },
+
+  "voyage": {
+    "voyage_id": "V001",
+    "vessel_id": "IMO9876543",
+    "voyage_number": "2026-042",
+    "port_of_departure": {
+      "unlocode": "JPOSA",
+      "name": "Osaka",
+      "country": "JPN"
+    },
+    "port_of_arrival": {
+      "unlocode": "SGSIN",
+      "name": "Singapore",
+      "country": "SGP"
+    },
+    "last_port_of_call": {
+      "unlocode": "JPOSA",
+      "name": "Osaka",
+      "country": "JPN"
+    },
+    "next_port_of_call": {
+      "unlocode": "MYTPP",
+      "name": "Tanjung Pelepas",
+      "country": "MYS"
+    },
+    "eta_utc": "2026-04-28T06:00:00Z",
+    "etd_utc": "2026-04-29T18:00:00Z",
+    "arrival_draught_fore_m": 7.2,
+    "arrival_draught_aft_m": 7.8,
+    "departure_draught_fore_m": 6.5,
+    "departure_draught_aft_m": 7.0,
+    "purpose_of_call": "Cargo operations",
+    "berth_requested": "Pasir Panjang Terminal Berth 6",
+    "anchorage_requested": null,
+    "crew_count": 22,
+    "passenger_count": 0,
+    "stowaways_count": 0,
+    "waste_to_deliver": true,
+    "waste_types": ["garbage", "oily_waste"]
+  },
+
+  "cargo": {
+    "voyage_id": "V001",
+    "vessel_id": "IMO9876543",
+    "total_cargo_tonnes": 6200,
+    "dangerous_goods_onboard": false,
+    "items": [
+      {
+        "line_number": 1,
+        "description": "Electrical components and machinery parts",
+        "hs_code": "8537",
+        "quantity": 450,
+        "unit": "packages",
+        "gross_weight_kg": 180000,
+        "port_of_loading": "JPOSA",
+        "port_of_discharge": "SGSIN",
+        "shipper": "Osaka Industrial Co Ltd",
+        "consignee": "Singapore Trading Pte Ltd",
+        "bill_of_lading": "PHOS20260425001"
+      },
+      {
+        "line_number": 2,
+        "description": "Automotive parts (non-hazardous)",
+        "hs_code": "8708",
+        "quantity": 320,
+        "unit": "cartons",
+        "gross_weight_kg": 96000,
+        "port_of_loading": "JPOSA",
+        "port_of_discharge": "SGSIN",
+        "shipper": "Yamada Auto Parts Co Ltd",
+        "consignee": "Southeast Asia Auto Distributors Pte Ltd",
+        "bill_of_lading": "PHOS20260425002"
+      }
+    ]
+  },
+
+  "ais_summary": {
+    "vessel_id": "IMO9876543",
+    "voyage_id": "V001",
+    "track_start_utc": "2026-04-23T10:00:00Z",
+    "track_end_utc": "2026-04-28T05:55:00Z",
+    "positions_count": 1842,
+    "ais_gap_events": [],
+    "dark_period_hours": 0,
+    "average_speed_knots": 12.4,
+    "max_speed_knots": 14.2,
+    "route_summary": "Osaka → Tsushima Strait → South China Sea → Singapore Strait"
+  }
+}
