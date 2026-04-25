@@ -58,17 +58,19 @@ Phase 3 & 4:
 | **Commercial** | Singapore port entry package (MPA Port+, ICA, TradeNet, SFA) | Closed — subscription | ✓ MVP |
 | Phase 2 roadmap | Japan port entry package (NACCS — Hakata / Tokyo) | Closed — subscription or per port-call | Post-PIER71 |
 
-Internationally standardised forms are free; highly localised, port-specific formats are paid. The open source release doubles as an industry contribution signal to MPA Singapore, the PIER71 programme sponsor and the priority institutional pilot target. Japan localisation is a validated Phase 2 opportunity, excluded from the PIER71 MVP scope to keep the sprint achievable.
+Internationally standardised forms are free; highly localised, port-specific formats are paid. The open source release doubles as an industry contribution signal to MPA Singapore, the PIER71 programme sponsor and the priority institutional pilot target. Japan localisation is an identified Phase 2 opportunity (Japan port call volume is significant and NACCS is a known integration target), excluded from the PIER71 MVP scope to keep the sprint achievable. No Japanese ship agent pilot has been identified yet; validation is a Phase 2 pre-condition.
 
 ---
 
 ## Market sizing
 
-| Market | 2025 | Projected | CAGR |
-|---|---|---|---|
-| Intelligent Document Processing | US$3.22B | US$43.92B by 2034 | 33.6% |
-| Maritime Software | — | US$2.86B by 2035 | — |
-| Maritime Cybersecurity | US$4.25B | US$15.22B by 2033 | 13.6% |
+| Market | 2025 | Projected | CAGR | Source |
+|---|---|---|---|---|
+| Intelligent Document Processing | US$3.22B | US$43.92B by 2034 | 33.6% | MarketsandMarkets, *IDP Market Report*, 2024 |
+| Maritime Software | — | US$2.86B by 2035 | — | Grand View Research, *Maritime Software Market*, 2024 |
+| Maritime Cybersecurity | US$4.25B | US$15.22B by 2033 | 13.6% | Allied Market Research, *Maritime Cybersecurity Report*, 2023 |
+
+> Note: Third-party market projections are indicative. documaris does not compete across the full maritime software market — the addressable segment is port-call documentation automation for ship agents and operators.
 
 ---
 

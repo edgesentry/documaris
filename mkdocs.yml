@@ -27,6 +27,7 @@ theme:
 nav:
   - Home: index.md
   - Background: background.md
+  - Customers: customers.md
   - Architecture: architecture.md
   - Roadmap: roadmap.md
   - PIER71 Evaluation Mapping: pier71-evaluation-mapping.md
