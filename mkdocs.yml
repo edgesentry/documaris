@@ -1,0 +1,32 @@
+site_name: documaris
+site_description: Maritime document generation and compliance automation platform.
+site_url: https://edgesentry.github.io/documaris/
+repo_url: https://github.com/edgesentry/documaris
+repo_name: edgesentry/documaris
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.action.edit
+
+nav:
+  - Home: index.md
+  - Background: background.md
+  - Architecture: architecture.md
+  - Roadmap: roadmap.md
+  - PIER71 Evaluation Mapping: pier71-evaluation-mapping.md
