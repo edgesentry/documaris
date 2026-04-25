@@ -1,8 +1,5 @@
 # documaris — Customer Analysis
 
-**Date:** 2026-04-25
-**Status:** Hypothesis-stage. Named pilot customer to be confirmed at M3 (Week 4).
-**Closes:** [#6](https://github.com/edgesentry/documaris/issues/6)
 **PIER71 priority note:** Customer and use case selection below is ordered by expected impact on PIER71-11 acceptance. The primary evaluators are MPA Singapore officials; use cases that directly reduce MPA's own operational burden score highest.
 
 ---
