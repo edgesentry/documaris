@@ -55,7 +55,7 @@ s3://maridb-bucket/
   events/vessel_id=IMO1234567/2026-04-24.json ← AIS position fixes, port entry/exit
 ```
 
-> **Note:** this schema is a design target. The R2 partition layout must be agreed between maridb and documaris as part of the Milestone 0 schema contract. maridb's current R2 output (MMSI-based shadow fleet watchlist data) differs from the vessel/voyage/cargo document model required here.
+> **Note:** this schema is a design target. The R2 partition layout must be agreed between maridb and documaris as part of the Milestone 0 schema contract. maridb's current R2 output is structured around AIS and vessel scoring data consumed by arktrace (the shadow fleet detection application at [github.com/edgesentry/arktrace](https://github.com/edgesentry/arktrace)); the vessel/voyage/cargo document model required by documaris is a separate schema that maridb must implement.
 
 DuckDB runs in-process (Rust `duckdb` crate, `bundled` feature) to JOIN across Parquet files with a single SQL query and output a flat JSON record. The `object_store` crate (`aws` feature) handles S3-compatible R2 download; swapping to a local file system for development requires no code change.
 

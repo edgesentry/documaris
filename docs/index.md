@@ -15,8 +15,8 @@ documaris consumes structured vessel, voyage, and cargo data from the [maridb](h
 
 | Product | Role |
 |---|---|
-| **maridb** | Data layer — vessel/voyage/cargo/AIS ingestion and transformation |
-| **arktrace** | Analytics layer — shadow fleet analysis, causal inference scoring |
+| **maridb** | Data layer — vessel/voyage/cargo/AIS ingestion and transformation. [github.com/edgesentry/maridb](https://github.com/edgesentry/maridb) |
+| **arktrace** | Shadow fleet detection application — reads maridb data; causal inference scoring, analyst dashboard. [github.com/edgesentry/arktrace](https://github.com/edgesentry/arktrace) |
 | **documaris** | Document layer — port call package generation, compliance checking |
 | **edgesentry** | Physical layer — robotic inspection, sensor deployment |
 
