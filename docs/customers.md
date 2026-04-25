@@ -1,107 +1,118 @@
 # documaris — Customer Analysis
 
 **Date:** 2026-04-25
-**Status:** Hypothesis-stage. Customer names and paid validation targets defined at M3 (Week 4 of PIER71 sprint).
+**Status:** Hypothesis-stage. Named pilot customer to be confirmed at M3 (Week 4).
 **Closes:** [#6](https://github.com/edgesentry/documaris/issues/6)
+**PIER71 priority note:** Customer and use case selection below is ordered by expected impact on PIER71-11 acceptance. The primary evaluators are MPA Singapore officials; use cases that directly reduce MPA's own operational burden score highest.
 
 ---
 
 ## The core problem
 
-When a vessel arrives at port, the master and ship agent face a coordination wall: crew lists, cargo manifests, customs declarations, health forms, and quarantine notices — each port demanding its own format, language, and submission window. The same data is manually re-keyed across multiple systems under time pressure, precisely when crew attention is needed for safety-critical operations.
+When a vessel arrives at Port of Singapore, the ship agent faces a four-agency coordination wall: MPA Port+ (vessel arrival/departure), ICA (crew immigration), Singapore Customs / TradeNet (cargo declaration), and SFA (food safety, if applicable). Each authority uses a different form, field naming, and submission channel. The same voyage data is manually re-keyed four times, under a tight pre-arrival window, with errors triggering port detentions that cost USD 50,000–500,000 per incident.
 
-**Consequence:** Errors trigger port detentions. Demurrage and penalties commonly range from USD 50,000 to USD 500,000 per incident. Agents operate in reactive firefighting mode with no tooling that understands port-specific compliance requirements before submission.
+Singapore processes 140,000+ vessel calls per year. Every one of them has this problem.
 
 ---
 
-## Customer segments
+## Customer priority order (PIER71-optimised)
 
-### Segment 1 — Ship agents (primary)
+### Priority 1 — Singapore ship agent managing MPA Port+ submissions ★★★
 
-**Who they are:** Intermediaries who handle port call documentation on behalf of shipowners and operators. A single agent may process dozens of port calls per week across multiple vessels.
+**Why this segment maximises PIER71 acceptance:**
+MPA Singapore runs PIER71. The 140,000 annual port calls are MPA's own operational environment. A solution that reduces error rate and submission time for Singapore ship agents directly solves a problem MPA's Port Operations department sees every day. This is not a third-party market claim — it is MPA's own data.
 
-**Scale:** Port of Singapore alone processes 140,000+ vessel calls per year. Each call requires coordinated submission to MPA, ICA, TradeNet (Singapore Customs), and SFA. The agent is responsible for all of them.
+**Who they are:** Agents who handle port call submissions on behalf of shipowners for vessels calling at Singapore. A mid-size agency may process 20–100 vessel calls per month.
 
 **Pain points:**
 
-| Pain | Description | Consequence |
-|---|---|---|
-| Manual re-keying | The same voyage data (vessel, crew, cargo) is entered separately into each authority's system | Time cost estimated at 25–40 min per port call; error rate compounds with fatigue |
-| Format fragmentation | Each port authority uses a different form, field naming, and submission channel | Agent must maintain a mental model of every port's requirements |
-| No pre-submission check | Errors surface only after rejection by port authority | Triggers detention, delay, and demurrage charges |
-| Reactive workflow | No alert when a regulation changes or a crew certificate is about to expire | Agent discovers the problem at submission time |
+| Pain | Singapore-specific detail |
+|---|---|
+| Four-agency submission | MPA Port+, ICA, TradeNet, SFA each require separate logins, formats, and timing windows |
+| Pre-arrival window pressure | MPA requires notification 24–48 hours before arrival; ICA crew list must be pre-cleared; errors at T-24h cascade |
+| Regulatory change lag | MPA issues Port Marine Circulars irregularly; agents track changes manually or miss them |
+| No consolidated view | Agent has no single view of submission status across all four agencies for a single port call |
 
-**Why documaris, not a workaround:**
+**Use case for PIER71 demo (highest evaluator impact):**
+> Agent enters vessel + voyage data once → documaris generates MPA General Declaration (FAL Form 1), Crew List (FAL Form 5), and Singapore Port Entry Package (MPA Port+ fields + ICA pre-clearance fields) simultaneously → Regulatory Alert flags an expired Ballast Water Management certificate as HIGH before submission → PDF package downloaded with BLAKE3 hash + AIS voyage evidence appended.
 
-- Excel / Word templates do not enforce compliance rules or alert on regulatory changes
-- Existing voyage management platforms (Veson, Helm CONNECT) focus on commercial operations, not document assembly and port-authority-specific compliance
-- No current tool generates Singapore port call packages (MPA + ICA + TradeNet + SFA) from a single data entry
-- Offline generation is unavailable in server-dependent SaaS tools — a constraint when connectivity is limited
-
-**Adoption trigger:** A single avoided detention (USD 50,000 minimum) justifies an annual subscription many times over. The financial ROI is computable and immediate.
-
----
-
-### Segment 2 — Ship managers and operators
-
-**Who they are:** Shore-side operations teams responsible for fleet compliance, crewing, and port scheduling. They do not submit documents directly but bear the cost when agents make errors.
-
-**Pain points:**
-
-| Pain | Description | Consequence |
-|---|---|---|
-| Crew fatigue from admin | Crew members complete forms during port approach — a safety-critical window | Compliance burden competes directly with navigation duties |
-| Opaque fleet compliance status | No consolidated view of which vessels have submitted what, across 10–50 vessels | Operator learns of a problem from the port authority, not from their own system |
-| Certificate expiry blindspot | Crew certificates (STCW, medical) expire without automated notice | Port state control deficiency; potential vessel detention |
-
-**Why documaris:** Operators need a read-only dashboard view of fleet-wide compliance status without running a separate IT system. documaris generates documents from the same maridb data feed that powers arktrace, meaning the operator does not maintain a second data source.
+**Why documaris, not alternatives:**
+- MPA's own Port+ system receives documents but does not generate them — there is no MPA-provided tool for agents to create the submission package
+- Voyage management platforms (Veson, Helm CONNECT) handle commercial operations, not port-authority-specific form assembly
+- A single avoided detention in Singapore justifies an annual subscription 10× over
 
 ---
 
-### Segment 3 — Port authorities and customs (institutional, indirect)
+### Priority 2 — MPA Singapore / Port+ programme as institutional pilot target ★★★
 
-**Who they are:** MPA Singapore, ICA, TradeNet/Singapore Customs, SFA. They receive declarations and verify vessel identity, crew, and cargo. They are not paying customers; they are the destination authority.
+**Why this matters for PIER71:**
+PIER71 is explicitly designed to identify solutions that MPA can adopt or endorse. A solution that MPA can point to as "we validated this against our Port+ data" scores on Criterion 5 (Real-World Validation) and Criterion 9 (Domain Mastery) simultaneously.
 
-**Pain:** Inaccurate or unverifiable declarations create enforcement gaps. Shadow fleet operators exploit format inconsistencies to obscure vessel identity.
+**What MPA cares about:**
+- Reducing inbound submission errors that burden Port Operations staff
+- Advancing Singapore's paperless port initiative (Port+ is MPA's own digitalisation programme)
+- Anti-shadow-fleet document integrity — MPA's MPOL programme is the institutional counterpart to arktrace
 
-**Why documaris matters to them:** The Trust Layer (BLAKE3 hash + Ed25519 signature + AIS voyage evidence) makes document provenance verifiable. A port authority that receives a documaris-generated submission can cryptographically verify that the document was produced from a specific AIS track at a specific time — without accessing the originator's systems.
+**documaris value to MPA directly:**
+The Trust Layer (BLAKE3 + Ed25519 + AIS voyage evidence) allows MPA to cryptographically verify that a submitted document was generated from a specific AIS track at a specific time. This directly addresses false declarations — a known concern for vessels operating in the shadow fleet evasion routes through the Malacca Strait.
 
-**Adoption path:** Port authority adoption is not a short-cycle sales motion. It is an institutional alignment play, aligned with MPA's Port+ digitalisation initiative and Singapore's TrustSG framework. This is a Phase 2+ objective, not an M0–M3 deliverable.
+**PIER71 pitch framing:**
+> "documaris is the document layer of the same data infrastructure that arktrace uses for shadow fleet detection. A vessel that arktrace flags as high-risk generates a port call document with a verifiable AIS trail that MPA can cross-check against the MPOL intercept record — closing the loop between vessel tracking and port compliance in a single audit event."
 
----
-
-## Why must they use documaris specifically
-
-The following table maps each customer pain to the specific documaris capability that addresses it — and to the differentiator that creates switching cost.
-
-| Customer pain | documaris capability | Why competitors do not cover it |
-|---|---|---|
-| Re-keying across systems | Single data entry → all port-authority forms generated in one pass | Voyage management platforms do not model port-specific form schemas |
-| No pre-submission check | Regulatory Alert: HIGH / MEDIUM / LOW flags before submission | No current tool applies a compliance rule engine to port-specific regulations |
-| Offline requirement | WASM in-browser rendering; no server required for crew PII forms | SaaS platforms require active connectivity |
-| Audit trail / document authenticity | Trust Layer: BLAKE3 hash + Ed25519 signature + AIS voyage evidence | No current tool binds a document to a verifiable AIS track |
-| Crew certificate expiry | Regulatory Alert monitors certificate validity against voyage schedule | Handled separately in crewing systems, not integrated with document generation |
+This connection to arktrace is unique. No competitor can make this claim.
 
 ---
 
-## What remains unvalidated (honest accounting)
+### Priority 3 — Ship managers / operators (fleet-level) ★★
 
-The following are design hypotheses that will be validated at M3 (Week 4 of the PIER71 sprint):
+**Who they are:** Shore-side operations teams managing 10–50 vessels. They do not submit documents themselves but own the compliance responsibility.
 
-| Hypothesis | Validation method | Target |
+**Pain:** No consolidated fleet compliance view. Certificate expiry (STCW, medical, BWM) is tracked in separate crewing systems that do not connect to port call submission workflows.
+
+**Use case:** Fleet operations manager sees a dashboard of upcoming port calls flagged by Regulatory Alert — three vessels have BWM certificates expiring within the port call window; one is already HIGH severity. No agent needs to be called; the alert is visible before the pre-arrival window opens.
+
+**PIER71 relevance:** Supports Criterion 6 (Operational Scalability) — documaris scales from a single agent to a fleet operator without changing architecture. The same WASM pipeline serves 1 vessel or 500.
+
+---
+
+### Priority 4 — Port authorities / customs (institutional, indirect) ★
+
+**Who they are:** MPA, ICA, Singapore Customs. They receive declarations; they are not paying customers.
+
+**Why they matter for PIER71:** If an evaluator from MPA Port Operations sees that documaris generates submissions that are cryptographically verifiable — and that this directly reduces false declarations — it provides institutional credibility that no ship agent reference can match.
+
+**Note:** Port authority adoption is a Phase 2+ play. It is not an M0–M5 deliverable. It should be framed as the long-term institutional outcome, not the near-term customer.
+
+---
+
+## Use cases ranked by PIER71 evaluator impact
+
+| Rank | Use case | Criterion addressed | Demo feasibility at M3 |
+|---|---|---|---|
+| 1 | Singapore port entry package (MPA + ICA + TradeNet) from single data entry | 1 (Urgency), 5 (Validation), 9 (Domain) | Yes — field map + mock data |
+| 2 | Regulatory Alert: HIGH on expired BWM cert blocks submission | 1 (Urgency), 3 (Competitive advantage), 9 (Domain) | Yes — seed KB with real MPA circular |
+| 3 | AIS Voyage Evidence appended to port call package (arktrace connection) | 8 (IP/Defensibility), 9 (Domain), 10 (IO-11) | Yes — maridb AIS data → signed summary |
+| 4 | Cryptographic verify endpoint: `GET /audit/verify?hash=` returns voyage record | 2 (Market), 8 (IP), 10 (IO-02) | Yes — Trust Layer M2 deliverable |
+| 5 | Offline FAL Form 5 generation (PWA, no server) | 3 (Competitive advantage), 6 (Scalability) | M1 Should / M2 stretch |
+| 6 | Fleet compliance dashboard (multi-vessel Regulatory Alert view) | 6 (Scalability), 7 (Business model) | Phase 2 — not M0–M5 |
+
+---
+
+## What remains unvalidated
+
+| Hypothesis | Validation method | When |
 |---|---|---|
-| Baseline document creation time is ~32 min per port call | Timed session with a Singapore ship agent on the current workflow | Confirmed baseline before measuring reduction |
-| Port-authority rejection / rework rate is ~18% | Log review with ship agent across 20 sample port calls | Confirmed baseline |
-| Regulatory Alert precision ≥ 90% | 20-case audit: fraction of HIGH alerts that correspond to a real rule violation | ≥ 90% precision |
-| Ship agents will adopt a free FAL form tool as an on-ramp | Interview with 3 agents; attempt to use M0 live demo | At least 1 agent willing to run a live port call through M0 |
-
-The PoC does not depend on these numbers being validated before the platform is built. AUROC-equivalent quality gates are defined in `roadmap.md` and will be measured at M3.
+| Baseline document creation time is ~32 min per Singapore port call | Timed session with a Singapore ship agent on current workflow | M3 (Week 4) |
+| Port-authority rework / rejection rate is ~18% | Log review with ship agent across 20 sample port calls | M3 (Week 4) |
+| Regulatory Alert precision ≥ 90% on Singapore rules | 20-case audit against real MPA Port Marine Circulars | M3 (Week 4) |
+| Ship agents will adopt a free FAL form tool as an on-ramp to Singapore subscription | Interview with ≥ 3 Singapore agents; attempt live port call through M0 demo | M3 (Week 4) |
+| MPA Port Operations staff will engage as a pilot via PIER71 introduction | PIER71 programme contact facilitation | M4–M5 |
 
 ---
 
 ## Open questions
 
-1. **Who is the economic buyer vs. the daily user?** In a ship agency, the operations manager approves SaaS subscriptions; the documentation clerk uses the tool. Sales motion targets the manager; onboarding targets the clerk.
-2. **What is the switching cost from the current workflow?** If an agent's current workflow is Excel + email, switching cost is low. If they have a vendor-integrated system (e.g., integrated with a shipowner's ERP), switching cost is higher.
-3. **Does MPA Singapore have a preferred submission channel?** If MPA Port+ mandates a specific API or format, documaris must integrate with it — or become an upstream generator that feeds the mandated channel.
-4. **Who owns regulatory KB updates?** Port regulations change. The Regulatory Alert is only as good as the knowledge base that powers it. Ownership of ongoing KB maintenance is unresolved (see `roadmap.md` open question #6).
+1. **Who is the economic buyer vs. the daily user?** Operations manager approves subscription; documentation clerk uses the tool. Sales motion targets the manager; onboarding targets the clerk.
+2. **Does MPA's Port+ system expose an API for documaris to submit directly?** If yes, documaris becomes a generation + submission tool, not just a generation tool — significantly raising value and switching cost.
+3. **Who owns Regulatory KB updates?** Port regulations change. The Regulatory Alert is only as good as the knowledge base. Ownership of ongoing KB maintenance is unresolved — see `roadmap.md` open question #6.
+4. **Can arktrace watchlist data feed a "document risk flag" in documaris?** If a vessel is on the arktrace high-risk watchlist, documaris could surface a warning at document generation time — before MPA sees the submission. This closes the arktrace → documaris loop and creates a uniquely defensible integration.
