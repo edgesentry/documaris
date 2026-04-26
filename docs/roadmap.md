@@ -1,6 +1,6 @@
 # documaris — Roadmap
 
-- **Date:** 2026-04-26 (updated from 2026-04-24)
+- **Date:** 2026-04-26 (updated from 2026-04-26)
 - **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
 - **Delivery:** Native desktop app; local open-source AI model (Apache 2.0 / MIT, model TBD)
 - **PIER71 application deadline:** 15 June 2026
@@ -9,130 +9,188 @@
 
 ---
 
+## PIER71 demo scenarios
+
+The PIER71 demo is built around four test cases demonstrated in sequence as a single unscripted walkthrough. Each test case maps directly to the core value proposition.
+
+| # | Test case | What it proves | Milestone gate |
+|---|---|---|---|
+| **TC1** | One-click generation from structured data | Automation — the manual re-entry problem is solved | M2 |
+| **TC2** | Regulatory alert blocks a non-compliant submission | Compliance checking before submission, not after rejection | M3 |
+| **TC3** | Low-confidence AI field triggers human review | Human Agency & Oversight — AI proposes, human decides (AI Verify alignment) | M2 |
+| **TC4** | Agent traces an error in the audit log | Post-incident traceability — who did what, what the AI wrote, what the reviewer decided | M2 |
+
+**Demo flow (TC1 → TC3 → TC2 → TC4):**
+```
+TC1: "Here is how a full port call package is generated in one click."
+  ↓
+TC3: "When the AI is uncertain, the system stops and asks the agent to check."
+  ↓
+TC2: "When a compliance rule is violated, generation is blocked before submission."
+  ↓
+TC4: "If a question arises after submission, the agent can trace exactly what happened."
+```
+
+**Deferred to POST PIER71:**
+- TC5 (offline operation) — differentiator but adds demo complexity; deferred
+- AIS Voyage Evidence — narrative value but not required for TC1–TC4
+- PoC full measurement (20 cases) → 5 representative cases at M3 is sufficient for the application
+- Remote audit store sync (R2 audit bucket) — local audit log is sufficient for the demo
+- Model bundling / distribution strategy — ship it working; packaging is post-PIER71
+
+---
+
 ## Sprint milestones (6–7 weeks to PIER71 submission)
 
-**Demo principle:** a working build of the native app is available from M1 onwards and progressively enriched at each milestone. Every milestone produces something runnable. There is no "build first, demo later" phase — each week's output is demonstrable. For PIER71, the demo is a downloadable macOS build (or a screen recording if evaluators cannot run the app directly).
+**Build principle:** every milestone produces something runnable. No "build first, demo later." From M1 onwards the native app is progressively enriched. For PIER71, the demo is a downloadable macOS build or a screen recording.
 
 ---
 
-### Milestone 0 — Schema contract + native app skeleton (Week 1)
+### Milestone 0 — Decision sprint + skeleton (Week 1)
 
-**Deliverables:** `mock/vessel_V001.json` + `field_maps/fal_form_1_field_map.json` + runnable native app skeleton (window opens, loads mock data)
+**Gate:** three hard decisions made; skeleton runs.
 
-- Select native app framework and local AI model (decisions needed before M1 pipeline can be wired up)
-- Define a single vessel + voyage + cargo mock record matching the maridb DuckLake Parquet schema
-- Map every FAL Form 1 field to its maridb source, fill type, and AI-fill-required flag
-- Cross-check every field against IMO FAL Convention Annex for completeness
-- Agree schema for the documaris R2 bucket with maridb (schema contract: which fields, which Parquet partition layout); this is the interface contract for maridb's copy job — maridb's own R2 output is not modified; confirm crew PII is explicitly excluded from the documaris bucket
-- Confirm model download / bundling strategy: size budget, first-run UX, storage location
+**Decisions (must be made this week — everything else blocks on these):**
 
----
+| Decision | Options | Blocking |
+|---|---|---|
+| Native app framework | Tauri (Rust/WebView) · egui · iced | M1 UI wiring |
+| Local AI model | Apache 2.0 / MIT model with JP support + structured JSON output | M1 AI fill |
+| R2 schema contract | Parquet partition layout agreed with maridb | M1 field map + maridb#49 copy job |
 
-### Milestone 1 — FAL Form 1 template + pipeline (Week 2)
-
-**Demo state after this milestone:** native app shows "Generate FAL Form 1" button → PDF saved to local file system in < 1 second from mock data.
-
-#### Must (milestone gate)
-- `templates/fal/fal_form_1.html` — A4, pixel-accurate against the official IMO FAL Form 1 PDF
-- Native app pipeline wired end-to-end: button click → mock Parquet → DuckDB → field map → AI fill → Tera → native PDF render → local file save
-
-#### Should (target if template is confirmed correct by mid-week)
-- FAL Form 5 path: user selects local crew JSON file → merged with vessel/voyage data → PDF rendered locally (all PII stays in app process)
-
-#### Could (stretch — carry to M2 if needed)
-- Offline mode confirmed: disconnect network → all generation still works from local cache
+**Deliverables:**
+- `mock/vessel_V001.json` — single vessel + voyage + cargo record matching agreed schema
+- `field_maps/fal_form_1_field_map.json` — every FAL Form 1 field mapped to maridb source, fill type, AI-fill flag
+- Native app skeleton: window opens, loads mock data, no crash
+- Crew PII exclusion from documaris R2 bucket confirmed in maridb pipeline spec
 
 ---
 
-### Milestone 2 — FAL Form 5 + Trust Layer + AIS Evidence (Week 3)
+### Milestone 1 — FAL Form 1 pipeline (Week 2)
 
-**Demo state after this milestone:** native app generates a full port call package (FAL 1 + FAL 5 + AIS Evidence); each PDF displays its BLAKE3 hash; `documaris verify <pdf>` confirms authenticity in < 1 second.
+**Demo state:** "Generate FAL Form 1" button → PDF on local file system in < 1 second from mock data.
 
-**Deliverables:** Port call package (FAL 1 + FAL 5 + AIS Voyage Evidence) sharing one integrity hash; `documaris verify <pdf>` CLI; AuditRecord entry visible in append-only R2 audit bucket
+#### Must
+- `templates/fal/fal_form_1.html` — A4, pixel-accurate against IMO FAL Form 1
+- End-to-end: button → mock Parquet → DuckDB → field map → AI fill → Tera → PDF render → local save
+
+#### Should
+- FAL Form 5 path: user selects local crew JSON → merged with vessel/voyage → PDF rendered locally (PII stays in app process)
+
+#### Could (carry to M2 if needed)
+- Offline mode: disconnect network → generation still works from local cache
+
+---
+
+### Milestone 2 — Trust Layer + confidence gate + audit trace (Week 3)
+
+**Demo gate: TC1 + TC3 + TC4 all demonstrable from this milestone.**
+
+**TC1 demo state:** FAL 1 + FAL 5 package generated in one click; BLAKE3 hash visible on each PDF.
+
+**TC3 demo state:** vessel with a vague cargo entry → `brief_cargo_description` field shows amber flag (confidence < 0.80) → export blocked → reviewer confirms or corrects → export proceeds.
+
+**TC4 demo state:** `documaris verify <pdf>` returns the full audit trace — what the AI wrote, confidence score, whether the reviewer accepted or corrected, timestamp — in human-readable form.
+
+**Deliverables:**
 
 - FAL Form 5 field map (variable crew size)
 - Multi-document output: `documaris generate port-call-package --vessel <id>`
-- Trust Layer: `edgesentry-audit` path dep; BLAKE3 hash on PDF output; hash embedded in XMP metadata; `DocumentAuditPayload` serialised → `edgesentry-audit` seal → `AuditRecord` written to local audit log + synced to append-only R2 audit bucket
-- AIS Voyage Evidence: DuckDB query on maridb R2 AIS events → AI fill natural-language voyage summary → signed companion document appended to the package
+- **Trust Layer:**
+  - `edgesentry-audit` path dep; BLAKE3 hash on PDF; hash embedded in XMP `/DocumentHash`
+  - `DocumentAuditPayload` constructed by documaris (vessel_id, voyage_id, ai_field_values, llm_confidence_flags, fields_modified) → serialised → `edgesentry-audit` `seal(bytes)` → `AuditRecord`
+  - `AuditRecord` + payload written to local append-only audit log (always, immediately)
+- **Confidence gate UI:**
+  - Fields with confidence < 0.80 → amber flag in review UI → PDF export blocked
+  - Reviewer must explicitly accept or correct each flagged field
+  - Decision recorded in `llm_confidence_flags`
+- **`documaris verify <pdf>` CLI:**
+  - Reads hash from PDF XMP → queries local audit log → returns human-readable trace
+  - Output shows: AI-generated value, confidence, reviewer action, timestamp, source data references
+
+> **AIS Voyage Evidence deferred.** Adds narrative value but is not required for TC1–TC4. Moved to POST PIER71.
 
 ---
 
-### Milestone 3 — Singapore package + Regulatory Alert + PoC measurement (Week 4)
+### Milestone 3 — Singapore package + Regulatory Alert (Week 4)
 
-**Demo state after this milestone:** native app adds "Singapore port entry package" button; a pre-loaded non-compliant vessel triggers a visible HIGH alert that blocks the generate button. PoC KPI report published.
+**Demo gate: TC2 demonstrable from this milestone.**
 
-**Deliverables:** `singapore_port_entry_field_map.json` + Regulatory Alert demo on a deliberately non-compliant vessel + PoC KPI report + subscription pricing model draft
+**TC2 demo state:** vessel with expired BWM D-2 certificate → Singapore package → HIGH alert fires → generate button blocked. A compliant vessel generates cleanly.
 
-- Collect MPA Port+ and TradeNet form templates; map fields to maridb schema
-- Build seed regulatory knowledge base for Port of Singapore (BWM D-2, quarantine windows, DG restrictions)
-- Implement Regulatory Alert: AI conflict-check at generation time; HIGH/MEDIUM/LOW severity; HIGH blocks submission; conflicts surfaced in PDF cover sheet
-- Demo: expired BWM certificate vessel → HIGH alert triggered
-- **PoC measurement (20 sample Singapore port call cases):**
-  - Average document creation time: baseline 32 min → target 14 min (56% reduction)
-  - Port-authority rework / rejection rate: baseline 18% → target 9% (50% reduction)
-  - Regulatory Alert precision: fraction of HIGH alerts that correspond to a real compliance rule violation (target ≥ 90%)
-  - Results published as `poc/singapore_kpi_report.md`
-- Identify MPA-connected pilot candidate via PIER71 programme (name + role confirmed)
+**Deliverables:**
 
-> **Customer validation dependency:** The baseline figures (32 min, 18%) are stated as hypotheses derived from informal ship agent interviews. M3 is the first milestone where these are measured against real port call cases. If baselines differ materially from the hypotheses, PoC targets will be revised and the delta disclosed in the KPI report. See [`customers.md`](customers.md) for the full list of unvalidated assumptions.
+- `singapore_port_entry_field_map.json` — MPA Port+ aligned fields mapped to maridb schema
+- Regulatory KB seed — at least 5 real Port of Singapore rules (BWM D-2, quarantine pre-notification window, DG restrictions, crew document minimum validity periods)
+- Regulatory Alert implementation: AI conflict-check at generation time; HIGH/MEDIUM/LOW severity; HIGH blocks export; alert detail surfaced in PDF cover sheet; MEDIUM override requires reason code (audit-logged)
+- Demo vessel: deliberately non-compliant record with expired BWM certificate
+- **PoC measurement (5 representative Singapore port call cases):**
+  - Document creation time: baseline ~32 min → target < 14 min
+  - Regulatory Alert precision: HIGH alerts matching real violations → target ≥ 90%
+  - Results in `poc/singapore_kpi_report.md`
+- MPA-connected pilot candidate identified (name + role)
 
----
-
-### Milestone 4 — Singapore polish + demo prep (Week 5)
-
-**Demo state after this milestone:** native app is demo-ready — realistic vessel data, offline mode confirmed, all four differentiators exercisable in a single unscripted walkthrough.
-
-**Deliverables:** End-to-end Singapore package demo on a real or realistic vessel record; all four differentiators exercisable in one flow
-
-- Polish Singapore field map against actual MPA Port+ form samples; resolve any field mapping gaps
-- Extend regulatory KB with at least 5 real Port of Singapore rules (validate against recent MPA circulars)
-- Harden the Trust Layer verify endpoint; ensure `documaris verify <pdf>` returns a human-readable result suitable for showing to a port officer
-- Offline demo (carry from M1 Could): confirm FAL Form 5 generates with no network and hash syncs on reconnect
-- Confirm pilot engagement with identified M3 contact: secure a meeting or letter of intent
+> **PoC scale reduced from 20 to 5 cases.** 5 real cases with honest KPI reporting is sufficient for the PIER71 application at this stage. If baselines differ from hypotheses, delta is disclosed in the report.
 
 ---
 
-### Milestone 5 — PIER71 submission polish (Weeks 6–7)
+### Milestone 4 — Demo hardening (Week 5)
 
-**Demo state:** native app already running since M1; this milestone polishes presentation, records the screen capture, and finalises the application text. No last-minute scramble.
+**Gate: TC1 → TC3 → TC2 → TC4 run end-to-end, unscripted, without error.**
 
-**Deliverables:** 2-minute screen recording of the native app demo + PIER71 application draft ready for submission (deadline: 15 June 2026)
+This milestone adds no new features. The entire week is spent making the four-TC demo reliable and recordable.
 
-The native app already demonstrates all four differentiators from M1. M5 work is polish and narrative, not new features:
+- Run TC1–TC4 in sequence on a realistic (not mock) vessel record
+- Harden `documaris verify <pdf>` output to be readable by a non-technical reviewer
+- Resolve any field mapping gaps against actual MPA Port+ form samples
+- Validate regulatory KB rules against recent MPA Port Marine Circulars
+- Confirm pilot engagement with M3 contact: meeting or letter of intent
+- Prepare demo script (narrative, not clicks) aligned to business brief sections
 
-1. **Data → Documents** — maridb R2 data + local crew JSON → one click → FAL 1 + FAL 5 + Singapore package + AIS Evidence; PDF saved locally
-2. **Verifiable Audit Trail** — hash shown post-generation; `verify` endpoint confirms document against AIS voyage record in < 1 second
-3. **Regulatory Alert** — non-compliant vessel (expired BWM certificate) triggers HIGH alert on Singapore package, blocking generation
-4. **Offline-First** — disconnect network → FAL Form 5 from local cache in < 10 seconds; hash queued and synced on reconnect
+---
 
-Polish PDF output to IMO layout standard. Prepare PIER71 application text.
+### Milestone 5 — PIER71 submission (Weeks 6–7)
+
+**Gate: 2-minute screen recording complete; application text submitted by 15 June 2026.**
+
+The demo already runs. M5 is recording and narrative — no new code.
+
+**Demo recording structure (2 minutes):**
+
+1. **(TC1 — 30 sec)** Load a Singapore-bound vessel. Click generate. FAL 1 + FAL 5 + Singapore package appear. BLAKE3 hash visible on each PDF.
+2. **(TC3 — 30 sec)** Point to the amber-flagged cargo description field. Show the confidence score. Reviewer corrects and confirms. Export proceeds.
+3. **(TC2 — 30 sec)** Switch to a vessel with an expired BWM certificate. Click generate. HIGH alert fires. Export blocked. Show the compliance rule triggered.
+4. **(TC4 — 30 sec)** Run `documaris verify <pdf>` on the document from TC1. Show the audit trace: AI wrote X at confidence 0.73, reviewer accepted, timestamp, source vessel_id.
+
+**Deliverables:**
+- 2-minute screen recording (above structure)
+- PIER71 application form text (from `pier71-business-brief.md` submission-ready section)
+- Slide deck aligned to 15-slide structure in `pier71-evaluation-mapping.md`
 
 ---
 
 ## Phase roadmap (beyond PIER71)
 
-| Phase | Milestone | Products |
+| Phase | Focus | New capabilities |
 |---|---|---|
-| 1 — PIER71 MVP (now) | FAL Form 1 + FAL Form 5 (OSS) + Singapore package; PIER71 demo build | maridb + documaris |
-| 2 — Private entity | First paying Singapore ship agent or operator; Japan package + Reverse Ingestion / Hanko-Confidence Score | maridb + documaris |
-| 3 — Hardware partner | Integrate hardware partner (connectivity or onboard ERP vendor) to enrich maridb data | maridb + documaris + partner hardware |
-| 4 — Full solution | edgesentry physical inspection layer feeds maridb → documaris reporting loop; inspection reports part of port call package | maridb + arktrace + documaris + edgesentry |
+| **1 — PIER71 MVP** | TC1–TC4 demo; Singapore pilot | FAL 1 + FAL 5 + Singapore package; local audit log |
+| **2 — Pilot-ready** | First paying Singapore agent/operator | AIS Voyage Evidence; TC5 offline mode; remote R2 audit bucket sync; Japan package; unstructured ingestion (email/messaging secondary path); TradeTrust Phase 2 |
+| **3 — Commercial** | Japan expansion + PIER71-02 PoC | edgesentry-audit extended to shipboard OT; Hanko-Confidence Score (OCR); maridb expanded with engine/sensor logs; immugate commercial audit service |
+| **4 — Platform** | Full trust platform | edgesentry + arktrace + documaris unified; PIER71-12 sensor data verification |
 
 ---
 
 ## Open questions
 
-1. **R2 partition layout contract** — needs agreement between maridb and documaris before M0; documaris field maps depend on this schema; maridb's current R2 layout (MMSI-based watchlist data) differs from the vessel/voyage/cargo document model required — maridb must implement the new layout
-2. **Crew PII exclusion from R2** — needs an explicit maridb pipeline rule; if any PII lands in R2 Parquet files, the local-processing privacy boundary breaks
-3. **Audit log location in maridb** — documaris writes AuditRecords to maridb's append-only log; the schema and table location for document audit records within maridb need to be agreed as part of the M0 schema contract
-4. **DuckDB `bundled` compile time** — adds ~2 min to CI builds and ~10 MB to binary; acceptable for prototype; evaluate system DuckDB for production CI
-5. **Native app framework** — Tauri (Rust/WebView) vs. pure Rust TUI/GUI (egui, iced) vs. other; decision needed before M0 skeleton; affects UI development speed and distribution packaging
-6. **AI model selection** — permissively licensed (Apache 2.0 / MIT) model with Japanese support and structured JSON output; must fit in acceptable download size budget; decision needed before M1 pipeline is finalised
-7. **Model distribution** — bundled in installer vs. downloaded on first run; size budget for macOS .dmg; storage location (app bundle vs. user data dir)
-8. **Regulatory KB update ownership** — automated port-notice scraping introduces hallucination risk; manual review gate needed; who owns this operationally?
-9. **Japan OCR / Hanko (Phase 2)** — deferred from PIER71 MVP; requires a local vision-capable model; selection and accuracy on Hakata Port samples to be validated before Phase 2 build begins
+1. **R2 schema contract** — partition layout must be agreed with maridb before M0 closes; maridb copy job (maridb#49) depends on this
+2. **Crew PII exclusion from R2** — explicit maridb pipeline rule needed; if any PII lands in Parquet files the local-processing boundary breaks
+3. **Native app framework** — Tauri vs. egui vs. iced; decision needed Day 1 of W1
+4. **AI model selection** — Apache 2.0 / MIT; Japanese support; structured JSON output; size budget for installer; decision needed before M1 AI fill is wired
+5. **Model distribution** — bundled vs. downloaded on first run; size budget for macOS .dmg
+6. **Audit log location (open Q removed)** — no longer maridb; local append-only file in native app (always), R2 audit bucket (Phase 2)
+7. **Regulatory KB update ownership** — manual review gate needed for port-notice scraping; who owns this operationally?
+8. **Japan OCR / Hanko (Phase 2)** — deferred; local vision-capable model required; validate on Hakata Port samples before Phase 2 build
 
 ---
 
 *See also: [`background.md`](background.md) · [`architecture.md`](architecture.md)*
-*Full use case specifications and prototype stack decisions: `_outputs/document-generation-plan.md`*
