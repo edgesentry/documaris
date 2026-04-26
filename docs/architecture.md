@@ -39,14 +39,21 @@
   │   5. Regulatory Alert                               │
   │   6. Render → PDF  (native PDF library)             │
   │                             │                       │
-  │             PDF → local file system                 │
-  └─────────────────────────────┬───────────────────────┘
-                                │ hash only (no PII, no content)
-                                ▼
+  │   ┌─────────────────────────┴──────────────────┐   │
+  │   ▼                                            ▼   │
+  │  PDF → local file system    Local audit log        │
+  │                             (append-only, tamper-  │
+  │                              evident; agent's own  │
+  │                              record, always avail) │
+  └───────────────────────────────┬─────────────────────┘
+                                  │ AuditRecord (no PII, no raw content)
+                                  │ queued locally if offline
+                                  ▼
   ┌─────────────────────────────────────────────────────┐
   │  REMOTE (maridb audit log — append-only)            │
-  │  BLAKE3 hash + Ed25519 signature + generation meta  │
-  │  (queued locally if offline; synced on reconnect)   │
+  │  Same AuditRecord; synced via edgesentry-audit      │
+  │  store-and-forward. Queryable by authorities,       │
+  │  P&I Clubs, and agents for root cause analysis.     │
   └─────────────────────────────────────────────────────┘
 ```
 
@@ -149,21 +156,63 @@ Implemented by reusing **`edgesentry-audit`** — the shared Rust crate from `ed
 edgesentry-audit = { path = "../edgesentry-rs/crates/edgesentry-audit" }
 ```
 
-**Signing flow:**
+**Dual-copy append-only audit log — neither copy can be modified:**
+
+Every document generation event produces an `AuditRecord` that is written to two independent, append-only stores simultaneously. No raw document content or PII is stored in either — only the actions taken and the cryptographic fingerprints.
+
 ```
 PDF binary
     │
     ▼ compute_payload_hash(pdf_bytes)  → BLAKE3 Hash32
     │
-    ▼ sign_record(vessel_id, seq, ts, pdf_bytes, prev_hash, "fal_form_1", key_hex)
-    │  → AuditRecord { payload_hash, signature, prev_record_hash, … }
+    ▼ sign_record(vessel_id, seq, ts, prev_hash, doc_type, ai_field_values, key_hex)
+    │  → AuditRecord {
+    │       seq,                    ← sequence number (gaps detectable)
+    │       payload_hash,           ← BLAKE3 of final PDF
+    │       prev_record_hash,       ← hash of previous record (chain)
+    │       signature,              ← Ed25519 over the full record
+    │       generated_by,           ← user identity
+    │       generated_at,           ← ISO 8601 timestamp
+    │       vessel_id, voyage_id,   ← source data references (no raw data)
+    │       ai_field_values,        ← AI-generated text per field (Class C only, no PII)
+    │       llm_confidence_flags,   ← per-field confidence + reviewer action
+    │       fields_modified,        ← before/after for reviewer edits
+    │       regulatory_alerts,      ← alerts raised, severity, resolution
+    │    }
+    │
+    ├──→ [1] LOCAL audit log (native app, append-only SQLite/flat file)
+    │        Agent's own tamper-evident record; persists on their device.
+    │        Always written first; available immediately, even offline.
     │
     ├──→ hash hex embedded in PDF XMP metadata (/DocumentHash)
     │
-    └──→ AuditRecord written to maridb audit log (append-only)
+    └──→ [2] REMOTE audit log (maridb, append-only, cloud)
+             Synced via edgesentry-audit store-and-forward.
+             Queryable by authorities and P&I Clubs via verify endpoint.
+             Written when connectivity is available; never blocks generation.
 ```
 
-**Verification:** `GET /audit/verify?hash=<blake3_hex>` → `{ "verified": true, … }`
+**Tamper-evidence is structural, not policy:**
+- **Hash chain:** each record includes `prev_record_hash`. Inserting, modifying, or deleting any record breaks all subsequent hashes in the chain — detectable by any party holding a copy.
+- **Ed25519 signature:** each record is signed with the operator's key. Modifying a record breaks its signature.
+- **Dual copy:** the local log and the remote log can be cross-verified against each other. An attacker would need to compromise both simultaneously to suppress evidence.
+- **Sequence numbers:** gaps in the sequence are detectable — records cannot be silently dropped.
+
+**What the audit log records (no PII, full action trace):**
+
+| What happened | What's recorded |
+|---|---|
+| Document generated | who, when, which vessel/voyage (by ID), document type |
+| AI filled a field | what text was generated, confidence score |
+| Reviewer accepted a low-confidence field | that they accepted it, the confidence at the time |
+| Reviewer corrected a field | before value, after value, editor identity |
+| Regulatory alert raised | severity, rule triggered, resolution action |
+| MEDIUM alert overridden | reason code entered by reviewer, their identity |
+| Document hash embedded in PDF | the hash (not the document content) |
+
+**Root cause analysis:** agents and authorities can query either copy to reconstruct the exact sequence of actions that produced a document — without retrieving any crew PII. Whether a port rejection was caused by an AI error, a reviewer override, post-generation tampering, or a source data issue is answerable from the audit log alone.
+
+**Verification:** `GET /audit/verify?hash=<blake3_hex>` → `{ "verified": true, chain_intact: true, … }`
 
 documaris also auto-generates an **AIS Voyage Evidence Summary** companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from maridb's AIS event Parquet data via the AI fill layer and signed with the same Ed25519 key as the primary document. This turns a form generator into a verifiable audit instrument: false declarations become detectable.
 
@@ -208,12 +257,18 @@ vessel/voyage JSON (local cache)    crew JSON (user-provided, local only)
                                  Ed25519 signature applied
                                 ▼
                      PDF → local file system (Save dialog)
-                                ▼
-                   hash + signature → maridb audit log
-                   (queued if offline; synced on reconnect)
+                                │
+              ┌─────────────────┴──────────────────┐
+              ▼                                     ▼
+  [1] LOCAL audit log                   [2] REMOTE audit log
+  (native app, append-only)             (maridb, append-only)
+  Written immediately.                  Queued if offline;
+  Agent's own tamper-evident            synced on reconnect
+  record; always available.             via edgesentry-audit
+                                        store-and-forward.
 ```
 
-**Offline-first:** The entire pipeline — data fetch cache, AI fill model, PDF render, and signing key — runs without a network connection. A ship's steel engine room with no signal is a supported environment. The audit log hash write is the only network-dependent step, and it is queued with store-and-forward (via edgesentry-audit) until connectivity resumes.
+**Offline-first:** The entire pipeline — data fetch cache, AI fill model, PDF render, signing key, and local audit log write — runs without a network connection. A ship's steel engine room with no signal is a supported environment. The remote audit log sync is the only network-dependent step, and it is queued with store-and-forward (via edgesentry-audit) until connectivity resumes. The local audit log is always written first, so the agent's own tamper-evident record is available immediately regardless of connectivity.
 
 **Privacy:** Because everything runs inside the native app process, there is no server-side code path at all for document generation. The privacy guarantee is structurally enforced, not a matter of configuration. Veson Nautical, ShipNet, and Helm CONNECT all require active server connectivity to render documents; documaris eliminates that dependency entirely.
 
