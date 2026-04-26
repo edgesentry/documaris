@@ -11,14 +11,15 @@
 
 ## PIER71 demo scenarios
 
-The PIER71 demo is built around four test cases demonstrated in sequence as a single unscripted walkthrough. Each test case maps directly to the core value proposition.
+The PIER71 demo is built around four test cases (TC1–TC4) demonstrated in sequence as a single unscripted walkthrough, plus one Phase 2 scenario (TC5) for post-PIER71 development.
 
-| # | Test case | What it proves | Milestone gate |
-|---|---|---|---|
-| **TC1** | One-click generation from structured data | Automation — the manual re-entry problem is solved | M2 |
-| **TC2** | Regulatory alert blocks a non-compliant submission | Compliance checking before submission, not after rejection | M3 |
-| **TC3** | Low-confidence AI field triggers human review | Human Agency & Oversight — AI proposes, human decides (AI Verify alignment) | M2 |
-| **TC4** | Agent traces an error in the audit log | Post-incident traceability — who did what, what the AI wrote, what the reviewer decided | M2 |
+| # | Test case | Scope | What it proves | Milestone gate |
+|---|---|---|---|---|
+| **TC1** | One-click generation from structured data | PIER71 MVP | Automation — the manual re-entry problem is solved | M2 |
+| **TC2** | Regulatory alert blocks a non-compliant submission | PIER71 MVP | Compliance checking before submission, not after rejection | M3 |
+| **TC3** | Low-confidence AI field triggers human review | PIER71 MVP | Human Agency & Oversight — AI proposes, human decides (AI Verify alignment) | M2 |
+| **TC4** | Agent traces a manual override in the audit log | PIER71 MVP | Human override vs AI error — mathematically distinguished, no PII | M2 |
+| **TC5** | Unstructured input traced to H(Raw) | Phase 2 | Audit chain extends to raw input bytes before any AI processing | Phase 2 |
 
 **Demo flow (TC1 → TC3 → TC2 → TC4):**
 ```
@@ -28,13 +29,72 @@ TC3: "When the AI is uncertain, the system stops and asks the agent to check."
   ↓
 TC2: "When a compliance rule is violated, generation is blocked before submission."
   ↓
-TC4: "If a question arises after submission, the agent can trace exactly what happened."
+TC4: "If a question arises after submission, the agent can trace exactly what happened —
+      without storing any personal data."
 ```
 
+### TC1 — One-click generation from structured data (PIER71 MVP)
+
+**Input:** Parquet vessel/voyage/cargo data fetched from documaris R2 bucket for a specific voyage ID.
+
+**Expected behaviour:** "Generate" button → FAL Form 1 + FAL Form 5 + Singapore package in < 60 seconds. BLAKE3 hash of the final PDF embedded in XMP metadata (`/DocumentHash`).
+
+**Audit log:** `edgesentry-audit` seals the `DocumentAuditPayload` (Class C). Log records `vessel_id` / `voyage_id` (source data references traceable to maridb snapshot), `ai_field_values`, `llm_confidence_flags`, `audit_hash`.
+
+---
+
+### TC2 — Regulatory alert blocks a non-compliant submission (PIER71 MVP)
+
+**Input:** Vessel with an expired BWM D-2 certificate.
+
+**Expected behaviour:** HIGH alert fires at generation time. Export button blocked. The violated rule is displayed in the UI and surfaced in the PDF cover sheet.
+
+**Audit log:** `regulatory_alerts`: rule violated, severity HIGH, submission blocked. Agent cannot export without resolving the alert.
+
+---
+
+### TC3 — Low-confidence AI field triggers human review (PIER71 MVP)
+
+**Input:** Voyage with an ambiguous cargo manifest — AI-generated `brief_cargo_description` has confidence score < 0.80.
+
+**Expected behaviour:** Field highlighted amber. Export blocked. Reviewer must explicitly Accept or Correct the field before the PDF can be exported.
+
+**Audit log:** `llm_confidence_flags`: AI confidence score per field + reviewer action (accepted / corrected). No reason code required — action alone is recorded.
+
+---
+
+### TC4 — Post-incident audit: manual override identified (PIER71 MVP)
+
+**Scenario:** After port entry, authority flags a mismatch between the FAL Form 1 cargo declaration and the bill of lading. Agent runs `documaris verify <pdf>`.
+
+**Result:** `fields_modified` shows: AI generated `brief_cargo_description` = "industrial machinery (HS 8428)" correctly; a specific user manually changed it to "general cargo" at timestamp T.
+
+**What this proves:** AI error and human override are mathematically distinguishable. **No Class A PII is stored in the audit log** — the proof uses only Class C (operational) data. documaris protects crew privacy while maintaining full accountability for document content decisions.
+
+**Audit log:** `fields_modified`: field name · AI before value · reviewer after value · editor identity · timestamp. No passport numbers, crew names, or any Class A data.
+
+---
+
+### TC5 — Unstructured input: H(Raw) audit chain (Phase 2)
+
+**Input:** WhatsApp passport photo (JPEG) + chat message: "1 new crew joined. Name: Alex Wong."
+
+**Expected behaviour:**
+- **documaris** computes `H(Raw)` = BLAKE3(raw image bytes) and BLAKE3(raw message bytes) **before** any AI processing.
+- `H(Raw)` is stored in `DocumentAuditPayload.raw_input_hashes` (Class C — only the hash, not the image or message content).
+- **edgesentry-audit** receives the serialised `DocumentAuditPayload` as opaque bytes and seals it into an `AuditRecord`. The library does not compute or inspect `H(Raw)`.
+
+**What this proves:** If OCR misread or document forgery is suspected later, the system can present the hash of the exact bytes it received — proving what input it was given, independent of the AI's interpretation.
+
+**Audit log:** `raw_input_hashes` (H(Raw) per input source) → `ai_field_values` (AI extraction) → `llm_confidence_flags` → `AuditRecord`. Full chain from raw input to sealed output.
+
+---
+
 **Deferred to POST PIER71:**
-- TC5 (offline operation) — differentiator but adds demo complexity; deferred
+- TC5 (Phase 2) — requires vision-capable local model and unstructured ingestion pipeline
+- Offline operation — differentiator but adds demo complexity; deferred
 - AIS Voyage Evidence — narrative value but not required for TC1–TC4
-- PoC full measurement (20 cases) → 5 representative cases at M3 is sufficient for the application
+- PoC full measurement (20 cases) → 5 representative cases at M3 is sufficient
 - Remote audit store sync (R2 audit bucket) — local audit log is sufficient for the demo
 - Model bundling / distribution strategy — ship it working; packaging is post-PIER71
 
@@ -160,7 +220,7 @@ The demo already runs. M5 is recording and narrative — no new code.
 1. **(TC1 — 30 sec)** Load a Singapore-bound vessel. Click generate. FAL 1 + FAL 5 + Singapore package appear. BLAKE3 hash visible on each PDF.
 2. **(TC3 — 30 sec)** Point to the amber-flagged cargo description field. Show the confidence score. Reviewer corrects and confirms. Export proceeds.
 3. **(TC2 — 30 sec)** Switch to a vessel with an expired BWM certificate. Click generate. HIGH alert fires. Export blocked. Show the compliance rule triggered.
-4. **(TC4 — 30 sec)** Run `documaris verify <pdf>` on the document from TC1. Show the audit trace: AI wrote X at confidence 0.73, reviewer accepted, timestamp, source vessel_id.
+4. **(TC4 — 30 sec)** Run `documaris verify <pdf>` on the document from TC1. Show the audit trace: AI generated `brief_cargo_description` = "industrial machinery (HS 8428)" correctly; a reviewer manually changed it to "general cargo" at timestamp T. Human override identified — not an AI error. No PII involved.
 
 **Deliverables:**
 - 2-minute screen recording (above structure)
@@ -190,7 +250,7 @@ These scenarios extend TC1–TC4 to cover unstructured input channels (messaging
 
 **Expected behaviour:**
 - Vision model extracts name and passport number from image; rank extracted from message text; both merged with existing crew list to produce updated FAL Form 5.
-- `H(Raw)` computed over raw image bytes and raw message bytes before any AI processing; linked to `DocumentAuditPayload` as `raw_input_hashes`.
+- **documaris** computes `H(Raw)` = BLAKE3(raw image bytes) and BLAKE3(raw message bytes) before any AI processing; stored in `DocumentAuditPayload.raw_input_hashes`. `edgesentry-audit` receives the serialised payload as opaque bytes and seals it — it does not compute or know about `H(Raw)`.
 
 **Audit log value:** if the extracted passport number is later found incorrect, the audit log shows: (1) the raw image hash — proving which photo was used, (2) the AI's extracted value and confidence, (3) whether the reviewer accepted or corrected the OCR output. Distinguishes image quality problem from AI extraction error from reviewer oversight.
 
@@ -203,7 +263,7 @@ These scenarios extend TC1–TC4 to cover unstructured input channels (messaging
 **Expected behaviour:**
 - AI infers "afternoon" → 14:00 (confidence 0.75, amber flag).
 - Regulatory alert: submission deadline (24 hours before arrival) is less than 1 hour away → MEDIUM alert fires; reviewer must enter reason code to proceed.
-- `H(Raw)` computed over raw email bytes; linked to `DocumentAuditPayload`.
+- **documaris** computes `H(Raw)` = BLAKE3(raw email bytes) before AI processing; stored in `DocumentAuditPayload.raw_input_hashes`.
 
 **Audit log value:** `regulatory_alerts` records the alert, the time remaining at generation, and the reviewer's reason code. `llm_confidence_flags` records the time inference at 0.75. Full traceability from raw email to submitted FAL Form 1.
 
