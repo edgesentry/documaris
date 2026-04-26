@@ -1,8 +1,8 @@
 # documaris — Background
 
-**Date:** 2026-04-24
-**Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
-**PIER71 application deadline:** 15 June 2026
+- **Date:** 2026-04-24
+- **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
+- **PIER71 application deadline:** 15 June 2026
 
 ---
 
@@ -110,9 +110,9 @@ Internationally standardised forms are free; highly localised, port-specific for
 
 ## Competitive Evidence Matrix
 
-**Comparison scope:** document generation workflow for port-call operations.  
-**Method:** public documentation review + trial/demo verification where available.  
-**Sample:** 3 representative platforms covering voyage management ERP, vessel compliance management, and port agency operations — reviewed April 2026.
+- **Comparison scope:** document generation workflow for port-call operations.  
+- **Method:** public documentation review + trial/demo verification where available.  
+- **Sample:** 3 representative platforms covering voyage management ERP, vessel compliance management, and port agency operations — reviewed April 2026.
 
 | Platform category | Offline form generation | Cryptographic PDF audit proof | Pre-submission regulatory conflict check | Checked on |
 |---|---|---|---|---|

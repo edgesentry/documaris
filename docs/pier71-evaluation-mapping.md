@@ -1,7 +1,7 @@
 # documaris — PIER71 Evaluation Criteria Mapping
 
-**Date:** 2026-04-26 (updated from 2026-04-24)
-**Innovation Opportunities applied for:** PIER71-11 (primary) · PIER71-02 (secondary) · PIER71-20 (dark-horse)
+- **Date:** 2026-04-26 (updated from 2026-04-24)
+- **Innovation Opportunities applied for:** PIER71-11 (primary) · PIER71-02 (secondary) · PIER71-20 (dark-horse)
 
 This document maps each of the 10 deck evaluation criteria from the PIER71 SPC Accelerate 2026 application form to the relevant sections of the documaris documentation and demo.
 
