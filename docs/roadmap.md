@@ -174,9 +174,77 @@ The demo already runs. M5 is recording and narrative — no new code.
 | Phase | Focus | New capabilities |
 |---|---|---|
 | **1 — PIER71 MVP** | TC1–TC4 demo; Singapore pilot | FAL 1 + FAL 5 + Singapore package; local audit log |
-| **2 — Pilot-ready** | First paying Singapore agent/operator | AIS Voyage Evidence; TC5 offline mode; remote R2 audit bucket sync; Japan package; unstructured ingestion (email/messaging secondary path); TradeTrust Phase 2 |
+| **2 — Pilot-ready** | First paying Singapore agent/operator | AIS Voyage Evidence; TC5 offline mode; remote R2 audit bucket sync; Japan package; unstructured ingestion (email/messaging secondary path); TradeTrust Phase 2; Phase 2 test cases (see below) |
 | **3 — Commercial** | Japan expansion + PIER71-02 PoC | edgesentry-audit extended to shipboard OT; Hanko-Confidence Score (OCR); maridb expanded with engine/sensor logs; immugate commercial audit service |
 | **4 — Platform** | Full trust platform | edgesentry + arktrace + documaris unified; PIER71-12 sensor data verification |
+
+---
+
+## Phase 2 test cases (post-PIER71)
+
+These scenarios extend TC1–TC4 to cover unstructured input channels (messaging apps, email, images). They require Phase 2 capabilities: vision-capable local AI model, unstructured ingestion pipeline, and the `H(Raw)` audit extension described below.
+
+### Phase 2 TC-A: Passport photo + messaging app → FAL Form 5 crew change
+
+**Input:** WhatsApp message ("1 new crew joined. Name: Alex Wong. Attached passport photo.") + smartphone photo of a passport (angled, slight shadow).
+
+**Expected behaviour:**
+- Vision model extracts name and passport number from image; rank extracted from message text; both merged with existing crew list to produce updated FAL Form 5.
+- `H(Raw)` computed over raw image bytes and raw message bytes before any AI processing; linked to `DocumentAuditPayload` as `raw_input_hashes`.
+
+**Audit log value:** if the extracted passport number is later found incorrect, the audit log shows: (1) the raw image hash — proving which photo was used, (2) the AI's extracted value and confidence, (3) whether the reviewer accepted or corrected the OCR output. Distinguishes image quality problem from AI extraction error from reviewer oversight.
+
+---
+
+### Phase 2 TC-B: Incomplete email → FAL Form 1 with regulatory alert
+
+**Input:** Gmail message: "ETA 28th April, afternoon. Coming from CNSHA."
+
+**Expected behaviour:**
+- AI infers "afternoon" → 14:00 (confidence 0.75, amber flag).
+- Regulatory alert: submission deadline (24 hours before arrival) is less than 1 hour away → MEDIUM alert fires; reviewer must enter reason code to proceed.
+- `H(Raw)` computed over raw email bytes; linked to `DocumentAuditPayload`.
+
+**Audit log value:** `regulatory_alerts` records the alert, the time remaining at generation, and the reviewer's reason code. `llm_confidence_flags` records the time inference at 0.75. Full traceability from raw email to submitted FAL Form 1.
+
+---
+
+### Phase 2 TC-C: Multilingual incident report
+
+**Input:** Mixed-language message: "船首をBerth 4に接触。No water ingress. 相手船はSea Star. Slight damage to bow."
+
+**Expected behaviour:**
+- AI interprets Japanese ("船首" → "Bow", "接触" → "contact/collision") and English inline; produces English official incident report draft.
+- All source text (Japanese and English) preserved in `ai_field_values`; translation reasoning stored as Class C data.
+
+**Audit log value:** `ai_field_values` records both the original mixed-language input and the translated output per field. If a translation is later disputed, the exact AI interpretation is recoverable.
+
+---
+
+### H(Raw) — audit chain extension for unstructured input
+
+When a document is generated from unstructured input (image, email, chat message), the audit chain must extend back to the raw input — not just the AI's interpretation of it.
+
+```
+Raw input bytes (image / email / chat)
+    │
+    ▼ H(Raw) = BLAKE3(raw_bytes)    ← computed before any AI processing
+    │
+    ▼ AI extraction / interpretation
+    │
+    ▼ DocumentAuditPayload {
+         raw_input_hashes: [H(Raw), …],   ← links chain back to source
+         ai_field_values,
+         llm_confidence_flags,
+         …
+       }
+    │
+    ▼ edgesentry-audit seal(bytes) → AuditRecord
+```
+
+`H(Raw)` is a BLAKE3 hash of the original bytes, computed by documaris before any AI processing. It is stored in `DocumentAuditPayload.raw_input_hashes` as Class C data (not the content itself — only the hash). This proves which exact input produced which AI interpretation, without storing the raw image or message content on any server.
+
+**Note:** `edgesentry-audit` does not change. It continues to receive opaque bytes and return a sealed record. `H(Raw)` is computed and stored by documaris inside `DocumentAuditPayload`.
 
 ---
 
