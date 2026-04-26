@@ -1,7 +1,7 @@
 # documaris — Architecture
 
-**Date:** 2026-04-26 (updated from 2026-04-24)
-**Status:** Core design defined; R2 schema contract and PII boundary pending sign-off; AI model selection and local-processing delivery mechanism under review
+- **Date:** 2026-04-26 (updated from 2026-04-24)
+- **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off; AI model selection and local-processing delivery mechanism under review
 
 ---
 
