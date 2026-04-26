@@ -1,8 +1,8 @@
 # documaris — Background
 
-**Date:** 2026-04-24
-**Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
-**PIER71 application deadline:** 15 June 2026
+- **Date:** 2026-04-24
+- **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
+- **PIER71 application deadline:** 15 June 2026
 
 ---
 
@@ -102,24 +102,24 @@ Internationally standardised forms are free; highly localised, port-specific for
 | # | Differentiator | Evidence basis and measurable target |
 |---|---|---|
 | 1 | **Verifiable Audit Trail** | Review of April 2026 public specs and available demos for representative platforms in the category found no feature that embeds a cryptographic hash linked to independently-sourced voyage data in generated PDFs. documaris: BLAKE3 hash + Ed25519 signature embedded in PDF XMP metadata + AIS Voyage Evidence Summary co-signed with the same key. Verification endpoint returns result in < 1 second. |
-| 2 | **Regulatory Alert at Generation Time** | Representative platforms in the category do not perform automated pre-submission compliance checking; conflict detection is left to the human agent. documaris: LLM cross-checks vessel snapshot against per-port regulatory KB before rendering; HIGH severity blocks generation. PoC target: rework / port-authority rejection rate 18% → 9% (50% reduction). Measured value to be submitted at M3. |
-| 3 | **Privacy by Design / WASM** | Representative platforms in the category centralise all form data including crew PII on their servers (confirmed against April 2026 public specs). documaris: crew PII rendered entirely in-browser via WASM; only a BLAKE3 hash transits the server. Architecture is verifiable by code inspection — no server-side PII code path exists. Addresses PIER71-11 and PIER71-02 simultaneously. |
-| 4 | **Offline-First PWA** | Representative platforms in the category require active server connectivity to render documents (confirmed against April 2026 public specs). documaris: WASM bundle + vessel/voyage JSON cached by Service Worker on first load; FAL Form 5 generates without a live connection; hash syncs on reconnect. PoC target: full offline generation in < 10 seconds. Average document creation time baseline 32 min → target 14 min (56% reduction). Measured value to be submitted at M3. |
+| 2 | **Regulatory Alert at Generation Time** | Representative platforms in the category do not perform automated pre-submission compliance checking; conflict detection is left to the human agent. documaris: AI cross-checks vessel snapshot against per-port regulatory KB before rendering; HIGH severity blocks generation. PoC target: rework / port-authority rejection rate 18% → 9% (50% reduction). Measured value to be submitted at M3. |
+| 3 | **Privacy by Design / Local Processing** | Representative platforms in the category centralise all form data including crew PII on their servers (confirmed against April 2026 public specs). documaris: crew PII processed locally — only a BLAKE3 hash transits the server. Architecture is verifiable by code inspection — no server-side PII code path exists. Addresses PIER71-11 and PIER71-02 simultaneously. Delivery mechanism (native app or WASM) under review; privacy guarantee holds regardless of approach. |
+| 4 | **Offline-First** | Representative platforms in the category require active server connectivity to render documents (confirmed against April 2026 public specs). documaris: vessel/voyage JSON and form templates cached locally on first use; FAL Form 5 generates without a live connection; hash syncs on reconnect. PoC target: full offline generation in < 10 seconds. Average document creation time baseline 32 min → target 14 min (56% reduction). Measured value to be submitted at M3. |
 
 ---
 
 ## Competitive Evidence Matrix
 
-**Comparison scope:** document generation workflow for port-call operations.  
-**Method:** public documentation review + trial/demo verification where available.  
-**Sample:** 3 representative platforms covering voyage management ERP, vessel compliance management, and port agency operations — reviewed April 2026.
+- **Comparison scope:** document generation workflow for port-call operations.  
+- **Method:** public documentation review + trial/demo verification where available.  
+- **Sample:** 3 representative platforms covering voyage management ERP, vessel compliance management, and port agency operations — reviewed April 2026.
 
 | Platform category | Offline form generation | Cryptographic PDF audit proof | Pre-submission regulatory conflict check | Checked on |
 |---|---|---|---|---|
 | Voyage management ERP (representative) | Not stated in public docs | Not stated in public docs | Not stated in public docs | 2026-04-24 |
 | Vessel compliance management (representative) | Not stated in public docs | Not stated in public docs | Not stated in public docs | 2026-04-24 |
 | Port agency operations platform (representative) | Not stated in public docs | Not stated in public docs | Not stated in public docs | 2026-04-24 |
-| **documaris** (MVP target) | **Yes** — WASM path for FAL Form 5; Service Worker cache; operates without server connection | **Yes** — BLAKE3 hash + Ed25519 embedded in PDF XMP; `GET /audit/verify?hash=` | **Yes** — Regulatory Alert HIGH/MEDIUM/LOW; HIGH blocks export, override not permitted | 2026-04-24 |
+| **documaris** (MVP target) | **Yes** — local processing path for FAL Form 5; operates without server connection | **Yes** — BLAKE3 hash + Ed25519 embedded in PDF XMP; `GET /audit/verify?hash=` | **Yes** — Regulatory Alert HIGH/MEDIUM/LOW; HIGH blocks export, override not permitted | 2026-04-26 |
 
 **Notes:**
 - Platform categories are representative of the tools ship agents use today for port call administration. Specific product names are available on request.

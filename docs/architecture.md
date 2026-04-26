@@ -1,65 +1,84 @@
 # documaris — Architecture
 
-**Date:** 2026-04-24
-**Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
+- **Date:** 2026-04-26 (updated from 2026-04-24)
+- **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
+- **Delivery:** Native desktop app (macOS / Windows / Linux); local open-source AI model (Apache 2.0 / MIT, model TBD)
+- **Key invariants:** vessel/voyage/cargo data pulled from documaris R2 bucket (maridb copies into it); crew PII supplied by user locally; only BLAKE3 hash transits the network
 
 ---
 
 ## System overview
 
 ```
-                     ┌──────────────────────────────────┐
-                     │               maridb              │
-                     │  vessel · voyage · cargo · events │
-                     │  (ingestion + transformation)     │
-                     └─────────────────┬────────────────┘
-                                       │ Parquet / JSON (DuckLake)
-                                       ▼
-                     ┌──────────────────────────────────┐
-                     │      Cloudflare R2 (DuckLake)    │
-                     │  vessels/   voyages/   cargo/    │
-                     │  events/   (no crew PII)         │
-                     └─────────────────┬────────────────┘
-                                       │ S3-compatible
-                                       ▼
-                     ┌──────────────────────────────────┐
-                     │         documaris pipeline        │
-                     │  1. Data Fetch                    │
-                     │  2. Field Mapping                 │
-                     │  3. LLM Fill                      │
-                     │  4. Trust Layer                   │
-                     │  5. Regulatory Alert              │
-                     │  6. Render → PDF                  │
-                     └────────────┬───────────┬─────────┘
-                                  │           │
-                      server-side PDF    browser-side PDF
-                      (non-PII forms)    (crew PII — WASM)
-                                  │           │
-                                  ▼           ▼
-                            audit log    local download
-                            (hash only)  (no server upload)
+  ┌─────────────────────────────────────────────────────┐
+  │  REMOTE (maridb)                                    │
+  │  vessel · voyage · cargo · events                   │
+  │  → copies required data to documaris R2 bucket      │
+  └───────────────────────┬─────────────────────────────┘
+                          │ push (maridb job)
+                          ▼
+  ┌─────────────────────────────────────────────────────┐
+  │  REMOTE (documaris R2 bucket — read-only for app)   │
+  │    vessels / voyages / cargo / events (Parquet/JSON) │
+  └───────────────────────┬─────────────────────────────┘
+                          │ download on first run / refresh
+                          ▼
+  ┌─────────────────────────────────────────────────────┐
+  │  LOCAL (documaris native app)                       │
+  │                                                     │
+  │  Local cache (documaris R2 snapshot)                │
+  │    vessels / voyages / cargo / events               │
+  │                             +                       │
+  │  User-provided crew JSON (PII — never leaves app)   │
+  │                             │                       │
+  │            documaris pipeline                       │
+  │   1. Data Fetch  (from local cache)                 │
+  │   2. Field Mapping                                  │
+  │   3. AI Fill  (local OSS model, bundled/downloaded) │
+  │   4. Trust Layer  (BLAKE3 + Ed25519, local key)     │
+  │   5. Regulatory Alert                               │
+  │   6. Render → PDF  (native PDF library)             │
+  │                             │                       │
+  │             PDF → local file system                 │
+  └─────────────────────────────┬───────────────────────┘
+                                │ hash only (no PII, no content)
+                                ▼
+  ┌─────────────────────────────────────────────────────┐
+  │  REMOTE (maridb audit log — append-only)            │
+  │  BLAKE3 hash + Ed25519 signature + generation meta  │
+  │  (queued locally if offline; synced on reconnect)   │
+  └─────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Layer 1 — Data Fetch
 
-maridb owns all data ingestion and transformation pipelines — vessel registry, voyage management, cargo manifests, and AIS event streams. It writes to Cloudflare R2 in DuckLake format (Parquet for structured records, JSON for event streams). documaris reads directly from maridb's R2 bucket — no REST API in the hot path.
+documaris reads exclusively from its own Cloudflare R2 bucket. maridb is responsible for copying the data documaris needs into this bucket. This keeps the dependency clean: maridb serves multiple applications (arktrace, documaris, and future products) and adding direct cross-app R2 bucket access would create tight coupling between consumers.
 
-**R2 layout (target schema — to be implemented by maridb):**
+**Responsibility split:**
+
+| Responsibility | Owner |
+|---|---|
+| Ingesting raw vessel, voyage, cargo, and AIS data | maridb |
+| Transforming and writing data to the documaris R2 bucket | maridb (copy job) |
+| Reading from the documaris R2 bucket | documaris app only |
+| Schema of the documaris R2 bucket | Agreed jointly at M0; owned by documaris |
+
+**documaris R2 layout (target schema — copy job implemented by maridb):**
 ```
-s3://maridb-bucket/
+s3://documaris-bucket/
   vessels/vessel_id=IMO1234567/data.parquet   ← name, flag, IMO, GT, LOA, certificates
   voyages/voyage_id=V20260424/data.parquet    ← departure/arrival port, ETA, ETD
   cargo/voyage_id=V20260424/data.parquet      ← HS codes, quantities, DG flags, BL refs
   events/vessel_id=IMO1234567/2026-04-24.json ← AIS position fixes, port entry/exit
 ```
 
-> **Note:** this schema is a design target. The R2 partition layout must be agreed between maridb and documaris as part of the Milestone 0 schema contract. maridb's current R2 output is structured around AIS and vessel scoring data consumed by arktrace (the shadow fleet detection application at [github.com/edgesentry/arktrace](https://github.com/edgesentry/arktrace)); the vessel/voyage/cargo document model required by documaris is a separate schema that maridb must implement.
+> **Schema contract (M0):** the documaris R2 partition layout is the interface contract between maridb and documaris. It must be agreed before Milestone 0 completes. maridb's existing R2 output (AIS and vessel scoring data for arktrace) uses a different schema; the copy job for documaris is a separate pipeline that maridb must implement without modifying its existing outputs.
 
-DuckDB runs in-process (Rust `duckdb` crate, `bundled` feature) to JOIN across Parquet files with a single SQL query and output a flat JSON record. The `object_store` crate (`aws` feature) handles S3-compatible R2 download; swapping to a local file system for development requires no code change.
+DuckDB runs in-process (Rust `duckdb` crate, `bundled` feature) to JOIN across Parquet files with a single SQL query and output a flat JSON record. The `object_store` crate (`aws` feature) handles S3-compatible download from the documaris R2 bucket; swapping to a local file system for development requires no code change.
 
-**Crew PII is never stored in R2.** It is loaded client-side in the browser and never transits the documaris server (see Layer 6 and the privacy boundary section).
+**Crew PII is never stored in R2.** It is provided by the user directly inside the native app and never leaves the local machine (see Layer 6 and the privacy boundary section).
 
 **Key dependencies:**
 ```toml
@@ -90,9 +109,9 @@ This schema is the formal contract between maridb's data layout and documaris's 
 
 ---
 
-## Layer 3 — LLM Fill
+## Layer 3 — AI Fill
 
-The LLM layer is decoupled from any specific provider behind a Rust trait:
+The AI fill layer is decoupled from any specific model or delivery mechanism behind a Rust trait:
 
 ```rust
 #[async_trait]
@@ -102,26 +121,20 @@ pub trait LlmProvider: Send + Sync {
 }
 ```
 
-Swapping local vs. cloud is a `config.toml` change; no code change required.
+Swapping local vs. cloud, or native app vs. server, is a `config.toml` change; no code change required.
 
-**Prototype tier — shared llama-server:**
+> **⚠ Implementation under review:** The specific model selection (local open-source model vs. cloud API) and delivery mechanism (native app vs. web app) are being evaluated. Options under consideration include distributing a permissively licensed (Apache 2.0 / MIT) model with the application to eliminate cloud API costs and network dependencies. Model names and provider details will be specified once the architecture decision is finalised.
 
-The shared `llama-server` (llama.cpp) runs on an OpenAI-compatible endpoint at `http://localhost:8080`. documaris reuses this process — previously co-located with arktrace, now to be confirmed as part of the maridb dev environment setup. Default model: **Qwen2.5-7B-Instruct-Q4_K_M** — strong multilingual model covering English and Japanese.
+**Capability requirements (delivery-mechanism-independent):**
 
-Vision/OCR tasks (Japanese form digitisation, hanko detection) run a second llama-server instance on `:8081` using **Gemma 4 E4B** (`gemma-4-E4B-it-Q4_K_M.gguf` + `--mmproj` projection file). Gemma 4 is natively multimodal across all variants, released 2026-04-02.
-
-**Production tier — Claude API:**
-
-Specific tasks are promoted to `claude-sonnet-4-6` only when local model quality is demonstrably insufficient after prompt tuning:
-
-| Task | Local (Qwen2.5-7B / Gemma 4 E4B) | Claude API |
-|---|---|---|
-| Direct field copy | Not needed | Not needed |
-| Cargo summary, FAL free-text | ✓ sufficient | Overkill |
-| Japanese field fill / translation | ✓ validate on NACCS samples | Fallback only |
-| Regulatory conflict detection | Test first; try Qwen2.5-14B before promoting | Fallback if 14B insufficient |
-| Japanese handwriting OCR + hanko | **Gemma 4 E4B** (`:8081`) | `claude-sonnet-4-6` fallback for severely degraded fax |
-| Long-context multi-document reasoning | — | `claude-sonnet-4-6` |
+| Task | Requirement |
+|---|---|
+| Direct field copy | No AI needed |
+| Cargo summary, FAL free-text | Multilingual text generation (English / Japanese) |
+| Japanese field fill / translation | Japanese language support required |
+| Regulatory conflict detection | Structured JSON output with confidence score |
+| Japanese handwriting OCR + hanko (Phase 2) | Vision / multimodal capability required |
+| Long-context multi-document reasoning | Extended context window required |
 
 All prompts request structured JSON output with a `confidence` field. Low-confidence fields surface as UI warnings and are never silently auto-submitted.
 
@@ -152,7 +165,7 @@ PDF binary
 
 **Verification:** `GET /audit/verify?hash=<blake3_hex>` → `{ "verified": true, … }`
 
-documaris also auto-generates an **AIS Voyage Evidence Summary** companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from maridb's AIS event Parquet data via Qwen2.5-7B and signed with the same Ed25519 key as the primary document. This turns a form generator into a verifiable audit instrument: false declarations become detectable.
+documaris also auto-generates an **AIS Voyage Evidence Summary** companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from maridb's AIS event Parquet data via the AI fill layer and signed with the same Ed25519 key as the primary document. This turns a form generator into a verifiable audit instrument: false declarations become detectable.
 
 **TrustSG / IMDA alignment:** the Trust Layer directly addresses two TrustSG pillars — Authenticity (Ed25519 signature proves the document originated from verified vessel data) and Integrity (BLAKE3 hash + append-only audit log proves no post-generation modification). This positions documaris as national-grade trust infrastructure for maritime document exchange, not a convenience tool.
 
@@ -160,7 +173,7 @@ documaris also auto-generates an **AIS Voyage Evidence Summary** companion docum
 
 ## Layer 5 — Regulatory Alert
 
-At generation time, the LLM cross-references the vessel snapshot against a per-port JSON regulatory knowledge base and returns a structured conflict list:
+At generation time, the AI fill layer cross-references the vessel snapshot against a per-port JSON regulatory knowledge base and returns a structured conflict list:
 
 ```
 vessel_snapshot  +  port_regulatory_kb
@@ -172,7 +185,7 @@ vessel_snapshot  +  port_regulatory_kb
                ── LOW ────┼── informational note in PDF cover sheet
 ```
 
-No hard-coded rule logic; the LLM evaluates natural-language rule descriptions against vessel data. The knowledge base is updated by a combination of automated port-notice monitoring and manual review.
+No hard-coded rule logic; the AI model evaluates natural-language rule descriptions against vessel data. The knowledge base is updated by a combination of automated port-notice monitoring and manual review.
 
 Example rules: BWM D-2 certificate validity, crew document expiry windows within port-specific minimum periods, DG cargo restrictions under current port circulars, quarantine pre-notification window compliance.
 
@@ -182,37 +195,27 @@ This layer shifts documaris from "document automation tool" (commoditised) to **
 
 ## Layer 6 — Render
 
-Two render paths, determined by data sensitivity:
+All forms — including those containing crew PII — are rendered inside the native app. There is no server-side rendering path and no split between PII and non-PII forms. The server-side / client-side duality that a browser-based approach required is eliminated.
 
-**Server-side (non-PII forms):**
 ```
-Field map JSON → Tera/Jinja2 template → HTML → WeasyPrint → PDF
-                                                                │
-                                                         Trust Layer hash embedded
-                                                                │
-                                                         returned as file download
-```
-
-**Browser-side / WASM (FAL Form 5 — crew PII):**
-```
-vessel/voyage JSON (maridb)      crew JSON (local file)
-              │                         │
-              └────────────┬────────────┘
-                           ▼
-              Typst-WASM or pdf-lib (runs in browser tab)
-                           │
-                           ▼
-              PDF assembled in memory → local download
-                           │
-                           ▼ hash only (no PII)
-              POST to maridb audit log
+vessel/voyage JSON (local cache)    crew JSON (user-provided, local only)
+              │                                    │
+              └─────────────────┬──────────────────┘
+                                ▼
+         Field map → Tera template → HTML → native PDF renderer
+                                ▼
+                     Trust Layer: BLAKE3 hash embedded in XMP
+                                 Ed25519 signature applied
+                                ▼
+                     PDF → local file system (Save dialog)
+                                ▼
+                   hash + signature → maridb audit log
+                   (queued if offline; synced on reconnect)
 ```
 
-Recommended WASM engine: **Typst WASM** (Rust-native, Japanese font support via Noto, same template syntax as server-side, ~4 MB bundle). **pdf-lib** (JS, ~800 KB) for prototype speed.
+**Offline-first:** The entire pipeline — data fetch cache, AI fill model, PDF render, and signing key — runs without a network connection. A ship's steel engine room with no signal is a supported environment. The audit log hash write is the only network-dependent step, and it is queued with store-and-forward (via edgesentry-audit) until connectivity resumes.
 
-**Offline-First PWA:**
-
-A Service Worker caches the WASM bundle, vessel/voyage JSON snapshot, and form templates on first load. FAL Form 5 can then be generated entirely offline — inside a ship's steel engine room with no signal — with the document hash queued for audit log sync when connectivity resumes. Veson Nautical, ShipNet, and Helm CONNECT all require active server connectivity to render documents; the WASM path eliminates that dependency for crew PII forms.
+**Privacy:** Because everything runs inside the native app process, there is no server-side code path at all for document generation. The privacy guarantee is structurally enforced, not a matter of configuration. Veson Nautical, ShipNet, and Helm CONNECT all require active server connectivity to render documents; documaris eliminates that dependency entirely.
 
 ---
 
@@ -221,7 +224,7 @@ A Service Worker caches the WASM bundle, vessel/voyage JSON snapshot, and form t
 ```
 smartphone photo (JPEG)
     │
-    ▼ Gemma 4 E4B via llama-server --mmproj (local, :8081)
+    ▼ vision-capable AI model (local, multimodal — model TBD)
       "Extract fields from this Japanese maritime form. Return structured JSON."
     │
     ▼ JSON extraction with per-field confidence + hanko_verification:
@@ -235,7 +238,7 @@ smartphone photo (JPEG)
         }
       }
     │
-    ▼ Intermediate JSON review UI (browser)
+    ▼ Intermediate JSON review UI (native app)
       All fields editable; low-confidence fields highlighted
       Hanko-Confidence Score meter + NACCS risk indicator
       "Confirm and proceed" gate before NACCS format conversion
@@ -253,25 +256,34 @@ The **Hanko-Confidence Score** (0.0–1.0) detects the presence, clarity, and te
 
 | Class | Contents | Examples | Server storage | Retention |
 |---|---|---|---|---|
-| **Class A — PII** | Personal data directly identifying an individual | Crew name, passport number, date of birth | None — client-side only (WASM) | 0 days — not stored by design |
+| **Class A — PII** | Personal data directly identifying an individual | Crew name, passport number, date of birth | None — local processing only | 0 days — not stored by design |
 | **Class B — Sensitive** | Vessel compliance status and risk-relevant flags | Certificate validity, incident flags, DG declarations | Cloudflare R2 (maridb-controlled, access-logged) | Per maridb data policy |
 | **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes | R2 + documaris audit log | Audit hashes: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
 
 ### Data flow boundary
 
 ```
-TRUSTED ZONE (server):   Class B/C — vessel, voyage, cargo, regulatory KB, audit records
+LOCAL (documaris native app):
+  ├─ Class A (PII)     — crew data supplied by user; never transmitted
+  ├─ Class B/C         — vessel/voyage/cargo pulled from maridb R2, cached locally
+  ├─ AI model          — bundled/downloaded; runs fully offline
+  ├─ Regulatory KB     — bundled; updated via app update mechanism
+  └─ PDF output        — written to local file system only
 
-PII ZONE (client-only):  Class A — crew names, passport numbers, DOB
-                          loaded from local file; WASM-rendered in browser
-                          only hash transits to server — no Class A code path on server
+REMOTE read (documaris R2 bucket, S3-compatible — read-only for app):
+  └─ vessel/voyage/cargo Parquet — copied here by maridb; downloaded on
+     first run and on refresh; no PII ever stored here
+
+REMOTE write (maridb audit log, append-only):
+  └─ BLAKE3 hash + Ed25519 signature + generation metadata
+     (no document content; no PII; queued locally if offline)
 ```
 
 ### Processing and storage rules
 
-- **Class A** is processed client-side only (WASM path). It is never transmitted to or persisted on the documaris server. No Class A code path exists on the server — verifiable by code inspection.
-- **Class B / C** may be processed server-side for document generation and compliance checking.
-- The server stores only hash-only audit artifacts (BLAKE3 hash, Ed25519 signature, generation metadata — no document content).
+- **Class A** is processed inside the native app only. It is never transmitted to any remote system. No network call contains Class A data — verifiable by code inspection.
+- **Class B / C** is downloaded from maridb R2 and processed locally inside the app. It is not re-uploaded to any documaris server.
+- The only remote write is the audit log entry: BLAKE3 hash + Ed25519 signature + generation metadata. No document content is stored remotely.
 
 ### Access control
 
@@ -329,9 +341,9 @@ Retrievable via `GET /audit/verify?hash=<blake3_hex>`.
 
 | Regulation | Mechanism |
 |---|---|
-| Singapore PDPA | Class A processed client-side only; no cross-border transfer to documaris servers |
-| Japan APPI | Same client-side processing; Claude API OCR (Phase 2) conditional on Anthropic Data Processing Agreement |
-| GDPR (EU-flagged vessels) | Client-side processing satisfies data minimisation; no Class A data stored server-side |
+| Singapore PDPA | Class A processed inside native app only; no cross-border transfer of PII; no documaris server receives crew data |
+| Japan APPI | Same local processing; Phase 2 OCR runs a local model — no PII transmitted to any cloud service |
+| GDPR (EU-flagged vessels) | Local processing satisfies data minimisation; no Class A data stored or transmitted |
 
 This policy defines data classification, retention periods, role-based approval gates, audit log contents, and incident response SLAs as implementation requirements — making compliance posture operationally auditable rather than a matter of declaration.
 
@@ -362,19 +374,19 @@ One `Cargo.lock` for the entire repo; all products share dependency versions.
 
 | Component | Technology |
 |---|---|
-| Backend pipeline | Rust (`documaris-core` + `documaris-cli` crates); Python FastAPI for rapid prototype |
-| LLM — text (prototype) | llama-server + Qwen2.5-7B-Instruct-Q4_K_M (`:8080`, shared — maridb dev environment) |
-| LLM — vision / OCR (prototype) | llama-server + Gemma 4 E4B + mmproj (`:8081`) |
-| LLM — production | Claude API `claude-sonnet-4-6` (promoted per task, config swap) |
-| PDF render — server | WeasyPrint (HTML/CSS → PDF) |
-| PDF render — browser | Typst WASM (production) · pdf-lib (prototype) |
-| Template engine | Tera (Rust) / Jinja2 (Python) — same syntax |
+| App delivery | Native desktop app (macOS / Windows / Linux); distributable installer |
+| Core pipeline | Rust (`documaris-core` + `documaris-cli` crates) |
+| AI fill — text | Local open-source model, Apache 2.0 / MIT licence (model TBD); bundled or downloaded on first run; runs fully offline via `LlmProvider` trait |
+| AI fill — vision / OCR (Phase 2) | Local multimodal model (model TBD) |
+| PDF render | Native PDF library (all forms, including PII; single render path) |
+| Template engine | Tera (Rust) |
 | Document hashing + signing | `edgesentry-audit` path dep — BLAKE3 + Ed25519 |
-| Data fetch | `object_store` crate, `aws` feature (S3-compatible R2) |
+| Data fetch | `object_store` crate, `aws` feature (S3-compatible; reads from documaris R2 bucket only) |
 | In-process query | DuckDB (`duckdb` crate, `bundled` feature) |
-| Regulatory KB | JSON per port + LLM eval at generation time |
-| Offline-first | PWA Service Worker + Cache API + IndexedDB |
-| Data lake | Cloudflare R2 (S3-compatible; maridb writes, documaris reads) |
+| Local data cache | App-local directory; vessel/voyage/cargo Parquet snapshots from documaris R2 |
+| Regulatory KB | JSON per port, bundled with app; AI eval at generation time |
+| Audit log sync | edgesentry-audit store-and-forward; queued locally when offline |
+| Data lake | Cloudflare R2 — documaris bucket (maridb copy job writes; documaris app reads) |
 
 ---
 
