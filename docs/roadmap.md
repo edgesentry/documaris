@@ -18,7 +18,7 @@ The PIER71 demo is built around four test cases demonstrated in sequence as a si
 | **TC1** | One-click generation from structured data | Automation — the manual re-entry problem is solved | M2 |
 | **TC2** | Regulatory alert blocks a non-compliant submission | Compliance checking before submission, not after rejection | M3 |
 | **TC3** | Low-confidence AI field triggers human review | Human Agency & Oversight — AI proposes, human decides (AI Verify alignment) | M2 |
-| **TC4** | Agent traces an error in the audit log | Post-incident traceability — who did what, what the AI wrote, what the reviewer decided | M2 |
+| **TC4** | Agent traces a manual override in the audit log | Post-incident traceability — proves human override vs AI error (non-PII field) | M2 |
 
 **Demo flow (TC1 → TC3 → TC2 → TC4):**
 ```
@@ -30,6 +30,15 @@ TC2: "When a compliance rule is violated, generation is blocked before submissio
   ↓
 TC4: "If a question arises after submission, the agent can trace exactly what happened."
 ```
+
+**TC detail — inputs, expected behaviour, and audit log per test case:**
+
+| TC | Input | Expected behaviour | Audit log |
+|---|---|---|---|
+| **TC1** | Parquet vessel/voyage/cargo data from documaris R2 bucket | FAL 1 + FAL 5 + Singapore package generated in < 60 sec; BLAKE3 hash embedded in PDF XMP | `vessel_id`, `voyage_id` (source references), `ai_field_values`, `llm_confidence_flags`, `audit_hash` |
+| **TC2** | Vessel with expired BWM D-2 certificate | HIGH alert fires at generation time; export button blocked; violation rule shown | `regulatory_alerts`: rule violated, severity HIGH, submission blocked |
+| **TC3** | Voyage with ambiguous cargo description (AI confidence < 0.80) | Amber flag on `brief_cargo_description`; export blocked; reviewer must accept or correct | `llm_confidence_flags`: confidence score + reviewer action (accepted / corrected) |
+| **TC4** | Same document as TC1; a reviewer manually changed `brief_cargo_description` | `documaris verify <pdf>` shows: AI wrote "industrial machinery (HS 8428)"; reviewer changed to "general cargo" at timestamp T | `fields_modified`: field name, AI-generated before value, reviewer after value, editor identity, timestamp — **no PII** |
 
 **Deferred to POST PIER71:**
 - TC5 (offline operation) — differentiator but adds demo complexity; deferred
@@ -160,7 +169,7 @@ The demo already runs. M5 is recording and narrative — no new code.
 1. **(TC1 — 30 sec)** Load a Singapore-bound vessel. Click generate. FAL 1 + FAL 5 + Singapore package appear. BLAKE3 hash visible on each PDF.
 2. **(TC3 — 30 sec)** Point to the amber-flagged cargo description field. Show the confidence score. Reviewer corrects and confirms. Export proceeds.
 3. **(TC2 — 30 sec)** Switch to a vessel with an expired BWM certificate. Click generate. HIGH alert fires. Export blocked. Show the compliance rule triggered.
-4. **(TC4 — 30 sec)** Run `documaris verify <pdf>` on the document from TC1. Show the audit trace: AI wrote X at confidence 0.73, reviewer accepted, timestamp, source vessel_id.
+4. **(TC4 — 30 sec)** Run `documaris verify <pdf>` on the document from TC1. Show the audit trace: AI generated `brief_cargo_description` = "industrial machinery (HS 8428)" correctly; a reviewer manually changed it to "general cargo" at timestamp T. Human override identified — not an AI error. No PII involved.
 
 **Deliverables:**
 - 2-minute screen recording (above structure)
@@ -190,7 +199,7 @@ These scenarios extend TC1–TC4 to cover unstructured input channels (messaging
 
 **Expected behaviour:**
 - Vision model extracts name and passport number from image; rank extracted from message text; both merged with existing crew list to produce updated FAL Form 5.
-- `H(Raw)` computed over raw image bytes and raw message bytes before any AI processing; linked to `DocumentAuditPayload` as `raw_input_hashes`.
+- **documaris** computes `H(Raw)` = BLAKE3(raw image bytes) and BLAKE3(raw message bytes) before any AI processing; stored in `DocumentAuditPayload.raw_input_hashes`. `edgesentry-audit` receives the serialised payload as opaque bytes and seals it — it does not compute or know about `H(Raw)`.
 
 **Audit log value:** if the extracted passport number is later found incorrect, the audit log shows: (1) the raw image hash — proving which photo was used, (2) the AI's extracted value and confidence, (3) whether the reviewer accepted or corrected the OCR output. Distinguishes image quality problem from AI extraction error from reviewer oversight.
 
@@ -203,7 +212,7 @@ These scenarios extend TC1–TC4 to cover unstructured input channels (messaging
 **Expected behaviour:**
 - AI infers "afternoon" → 14:00 (confidence 0.75, amber flag).
 - Regulatory alert: submission deadline (24 hours before arrival) is less than 1 hour away → MEDIUM alert fires; reviewer must enter reason code to proceed.
-- `H(Raw)` computed over raw email bytes; linked to `DocumentAuditPayload`.
+- **documaris** computes `H(Raw)` = BLAKE3(raw email bytes) before AI processing; stored in `DocumentAuditPayload.raw_input_hashes`.
 
 **Audit log value:** `regulatory_alerts` records the alert, the time remaining at generation, and the reviewer's reason code. `llm_confidence_flags` records the time inference at 0.75. Full traceability from raw email to submitted FAL Form 1.
 
