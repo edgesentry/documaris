@@ -1,8 +1,10 @@
 # documaris — Roadmap
 
-- **Date:** 2026-04-24
-- **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
+- **Date:** 2026-04-26 (updated from 2026-04-24)
+- **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off; AI model selection and local-processing delivery mechanism under review
 - **PIER71 application deadline:** 15 June 2026
+- **Secondary opportunity:** PIER71-02 (Cybersecurity — natural Phase 2 extension via edgesentry-audit)
+- **Dark-horse opportunity:** PIER71-20 (Fire Safety — NLP manifest screening, Phase 3 adjacent product)
 
 ---
 
@@ -18,7 +20,7 @@
 
 - Deploy a live URL (Cloudflare Pages or equivalent) on Day 1 — even a landing page with the tagline and a "generating..." placeholder establishes the demo anchor point and forces deployment infrastructure to be solved early
 - Define a single vessel + voyage + cargo mock record matching the maridb DuckLake Parquet schema
-- Map every FAL Form 1 field to its maridb source, fill type, and LLM-required flag
+- Map every FAL Form 1 field to its maridb source, fill type, and AI-fill-required flag
 - Cross-check every field against IMO FAL Convention Annex for completeness
 - Agree R2 partition layout with maridb (schema contract: which fields live in which Parquet file); confirm crew PII explicitly excluded from R2
 
@@ -30,13 +32,13 @@
 
 #### Must (milestone gate)
 - `templates/fal/fal_form_1.html` — A4, pixel-accurate against the official IMO FAL Form 1 PDF, WeasyPrint-compatible CSS
-- Server-side pipeline wired to live URL: button click → mock Parquet → DuckDB → field map → Qwen2.5-7B → Tera → WeasyPrint → PDF download
+- Server-side pipeline wired to live URL: button click → mock Parquet → DuckDB → field map → AI fill → Tera → WeasyPrint → PDF download
 
 #### Should (target if template is confirmed correct by mid-week)
-- WASM in-browser path: same button, no server round-trip for the PDF render (pdf-lib in browser)
+- Local processing path for crew PII forms (delivery mechanism TBD — native app or WASM): no server round-trip for FAL Form 5 render
 
 #### Could (stretch — carry to M2 if needed)
-- PWA Service Worker: live URL works offline after first load
+- Offline-first: forms generate without a live connection after first use
 
 ---
 
@@ -49,7 +51,7 @@
 - FAL Form 5 field map (variable crew size)
 - Multi-document output: `documaris generate port-call-package --vessel <id>`
 - Trust Layer: `edgesentry-audit` path dep; BLAKE3 hash on PDF output; hash embedded in XMP metadata; `AuditRecord` written to maridb audit log
-- AIS Voyage Evidence: DuckDB query on maridb R2 AIS events → Qwen2.5-7B natural-language voyage summary → signed companion document appended to the package
+- AIS Voyage Evidence: DuckDB query on maridb R2 AIS events → AI fill natural-language voyage summary → signed companion document appended to the package
 
 ---
 
@@ -61,7 +63,7 @@
 
 - Collect MPA Port+ and TradeNet form templates; map fields to maridb schema
 - Build seed regulatory knowledge base for Port of Singapore (BWM D-2, quarantine windows, DG restrictions)
-- Implement Regulatory Alert: LLM conflict-check at generation time; HIGH/MEDIUM/LOW severity; HIGH blocks submission; conflicts surfaced in PDF cover sheet
+- Implement Regulatory Alert: AI conflict-check at generation time; HIGH/MEDIUM/LOW severity; HIGH blocks submission; conflicts surfaced in PDF cover sheet
 - Demo: expired BWM certificate vessel → HIGH alert triggered
 - **PoC measurement (20 sample Singapore port call cases):**
   - Average document creation time: baseline 32 min → target 14 min (56% reduction)
@@ -99,7 +101,7 @@ The live URL already demonstrates all four differentiators. M5 work is polish an
 1. **Data → Documents** — maridb R2 data → one click → FAL 1 + FAL 5 + Singapore package + AIS Evidence
 2. **Verifiable Audit Trail** — hash shown post-generation; `verify` endpoint confirms document against AIS voyage record in < 1 second
 3. **Regulatory Alert** — non-compliant vessel (expired BWM certificate) triggers HIGH alert on Singapore package, blocking submission
-4. **Offline-First** — airplane mode → FAL Form 5 from local cache in 10 seconds; hash queued for sync
+4. **Offline-First** — no connection → FAL Form 5 from local data in 10 seconds; hash queued for sync
 
 Polish PDF output to IMO layout standard. Prepare PIER71 application text.
 
@@ -119,12 +121,13 @@ Polish PDF output to IMO layout standard. Prepare PIER71 application text.
 ## Open questions
 
 1. **R2 partition layout contract** — needs agreement between maridb and documaris before M0; documaris field maps depend on this schema; maridb's current R2 layout (MMSI-based watchlist data) differs from the vessel/voyage/cargo document model required — maridb must implement the new layout
-2. **Crew PII exclusion from R2** — needs an explicit maridb pipeline rule; if any PII lands in R2 Parquet files, the WASM privacy boundary breaks
+2. **Crew PII exclusion from R2** — needs an explicit maridb pipeline rule; if any PII lands in R2 Parquet files, the local-processing privacy boundary breaks
 3. **Audit log location in maridb** — documaris writes AuditRecords to maridb's append-only log; the schema and table location for document audit records within maridb need to be agreed as part of the M0 schema contract
 4. **DuckDB `bundled` compile time** — adds ~2 min to CI builds and ~10 MB to binary; acceptable for prototype; evaluate system DuckDB for production CI
-5. **WASM bundle delivery** — CDN vs. bundled with web app; affects repeat-user cache behaviour
-6. **Regulatory KB update ownership** — automated port-notice scraping introduces hallucination risk; manual review gate needed; who owns this operationally?
-7. **Japan OCR / Hanko (Phase 2)** — deferred from PIER71 MVP; Gemma 4 E4B accuracy on Hakata Port samples to be validated before Phase 2 build begins; Claude API fallback conditional on that result
+5. **Local delivery mechanism** — native app vs. WASM vs. other approach under review; decision needed before M1 Should milestone can be specified; affects cache and distribution strategy
+6. **AI model selection** — permissively licensed (Apache 2.0 / MIT) local model vs. cloud API under evaluation; decision needed before M1 pipeline is finalised; model must support Japanese and produce structured JSON output
+7. **Regulatory KB update ownership** — automated port-notice scraping introduces hallucination risk; manual review gate needed; who owns this operationally?
+8. **Japan OCR / Hanko (Phase 2)** — deferred from PIER71 MVP; requires a vision-capable local model; model selection and accuracy on Hakata Port samples to be validated before Phase 2 build begins
 
 ---
 
