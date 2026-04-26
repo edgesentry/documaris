@@ -18,7 +18,7 @@ flowchart TD
     pipeline["<b>LOCAL: documaris native app</b>\n1. Data Fetch\n2. Field Mapping\n3. AI Fill (local OSS model)\n4. Trust Layer (BLAKE3 + Ed25519)\n5. Regulatory Alert\n6. Render → PDF"]
     pdf["PDF\n→ local file system"]
     local_log["<b>Local audit log</b>\nappend-only · tamper-evident\nagent's own record · always available"]
-    remote_store["<b>REMOTE: tamper-proof audit store</b>\nappend-only\nimmugate / dedicated service\nqueryable by authorities & P&I Clubs"]
+    remote_store["<b>REMOTE: tamper-proof audit store</b>\nappend-only\nappend-only R2 bucket (MVP) → immugate (future)\nqueryable by authorities & P&I Clubs"]
 
     maridb -->|"push — maridb copy job"| r2
     r2 -->|"download on first run / refresh"| cache
@@ -128,6 +128,12 @@ Implemented by reusing **`edgesentry-audit`** — the shared Rust crate from `ed
 edgesentry-audit = { path = "../edgesentry-rs/crates/edgesentry-audit" }
 ```
 
+**Remote audit store — MVP and future:**
+
+> **MVP:** an append-only Cloudflare R2 bucket. Tamper-evidence comes from the hash chain and Ed25519 signatures produced by edgesentry-audit — not from R2's storage guarantees. The bucket is write-only (no DELETE, no overwrite); any modification to a stored record breaks the chain and is detectable.
+>
+> **Future:** **immugate** — a commercial service to be built by this team, providing a dedicated tamper-proof audit log with a public Merkle-tree verification API. immugate is not yet built; the R2 bucket is the production interim. The store-and-forward endpoint in edgesentry-audit is the only change needed when immugate ships.
+
 **Responsibility boundary — edgesentry-audit is domain-agnostic:**
 
 `edgesentry-audit` is an independent library. It knows nothing about vessels, voyages, documents, or AI fields. It receives opaque bytes and returns a sealed record. All maritime semantics live in documaris.
@@ -140,7 +146,7 @@ flowchart TD
     record["AuditRecord\npayload_hash (BLAKE3)\nprev_record_hash\nsignature (Ed25519)\nseq · ts"]
     xmp["hash embedded in\nPDF XMP /DocumentHash"]
     local["<b>[1] LOCAL audit log</b>\nnative app · append-only\nwritten first · always available"]
-    remote["<b>[2] REMOTE audit store</b>\nimmugate · append-only\nqueryable by authorities"]
+    remote["<b>[2] REMOTE audit store</b>\nappend-only R2 bucket (MVP)\nimmugate · future commercial service"]
 
     payload --> bytes --> seal --> record
     record --> xmp
@@ -226,7 +232,7 @@ flowchart TD
     trust["Trust Layer\nBLAKE3 hash in XMP · Ed25519 signature"]
     pdf_out["PDF → local file system"]
     local_log["<b>[1] LOCAL audit log</b>\nwritten immediately\nagent's own record"]
-    remote_store["<b>[2] REMOTE audit store</b>\nimmugate · append-only"]
+    remote_store["<b>[2] REMOTE audit store</b>\nappend-only R2 bucket (MVP)\nimmugate · future"]
 
     vessel_json --> render
     crew_json --> render
@@ -281,7 +287,7 @@ The **Hanko-Confidence Score** (0.0–1.0) detects the presence, clarity, and te
 |---|---|---|---|---|
 | **Class A — PII** | Personal data directly identifying an individual | Crew name, passport number, date of birth, nationality | None — local processing only | 0 days — not stored by design |
 | **Class B — Sensitive** | Vessel compliance status and risk-relevant flags | Certificate validity, incident flags, DG declarations | Cloudflare R2 (maridb-controlled, access-logged) | Per maridb data policy |
-| **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers; AI-generated field values (non-PII) | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes, AI-generated cargo description text, AI confidence scores per field | maridb R2 (read by app) + immugate audit store (AuditRecord + DocumentAuditPayload) | Audit records: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
+| **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers; AI-generated field values (non-PII) | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes, AI-generated cargo description text, AI confidence scores per field | maridb R2 (read by app) + append-only R2 audit bucket (AuditRecord + DocumentAuditPayload); immugate in future | Audit records: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
 
 ### Data flow boundary
 
@@ -297,7 +303,7 @@ REMOTE read (documaris R2 bucket, S3-compatible — read-only for app):
   └─ vessel/voyage/cargo Parquet — copied here by maridb; downloaded on
      first run and on refresh; no PII ever stored here
 
-REMOTE write (tamper-proof audit store — immugate / dedicated service, append-only):
+REMOTE write (tamper-proof audit store — append-only R2 bucket (MVP) → immugate (future), append-only):
   └─ AuditRecord (BLAKE3 hash, Ed25519 signature, seq, ts)
      + DocumentAuditPayload (Class C — no PII, no raw PDF content)
        vessel_id, voyage_id, doc_type, generated_by, generated_at,
@@ -310,7 +316,7 @@ REMOTE write (tamper-proof audit store — immugate / dedicated service, append-
 
 - **Class A** is processed inside the native app only. It is never transmitted to any remote system. No network call contains Class A data — verifiable by code inspection.
 - **Class B / C** is downloaded from maridb R2 and processed locally inside the app. It is not re-uploaded to any documaris server.
-- The only remote write is the AuditRecord + DocumentAuditPayload (Class C) to the tamper-proof audit store (immugate). No document content and no PII is stored remotely.
+- The only remote write is the AuditRecord + DocumentAuditPayload (Class C) to the tamper-proof audit store (append-only R2 bucket, MVP). No document content and no PII is stored remotely.
 
 ### Access control
 
