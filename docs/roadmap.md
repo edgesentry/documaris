@@ -46,20 +46,20 @@
 
 ### Milestone 2 — FAL Form 5 + Trust Layer + AIS Evidence (Week 3)
 
-**Demo state after this milestone:** live URL generates a full port call package (FAL 1 + FAL 5 + AIS Evidence); each PDF displays its BLAKE3 hash; verify link confirms authenticity in < 1 second.
+**Demo state after this milestone:** native app generates a full port call package (FAL 1 + FAL 5 + AIS Evidence); each PDF displays its BLAKE3 hash; `documaris verify <pdf>` confirms authenticity in < 1 second.
 
-**Deliverables:** Port call package (FAL 1 + FAL 5 + AIS Voyage Evidence) sharing one integrity hash; `documaris verify <pdf>` CLI; maridb audit log entry visible
+**Deliverables:** Port call package (FAL 1 + FAL 5 + AIS Voyage Evidence) sharing one integrity hash; `documaris verify <pdf>` CLI; AuditRecord entry visible in append-only R2 audit bucket
 
 - FAL Form 5 field map (variable crew size)
 - Multi-document output: `documaris generate port-call-package --vessel <id>`
-- Trust Layer: `edgesentry-audit` path dep; BLAKE3 hash on PDF output; hash embedded in XMP metadata; `AuditRecord` written to maridb audit log
+- Trust Layer: `edgesentry-audit` path dep; BLAKE3 hash on PDF output; hash embedded in XMP metadata; `DocumentAuditPayload` serialised → `edgesentry-audit` seal → `AuditRecord` written to local audit log + synced to append-only R2 audit bucket
 - AIS Voyage Evidence: DuckDB query on maridb R2 AIS events → AI fill natural-language voyage summary → signed companion document appended to the package
 
 ---
 
 ### Milestone 3 — Singapore package + Regulatory Alert + PoC measurement (Week 4)
 
-**Demo state after this milestone:** live URL adds "Singapore port entry package" button; a pre-loaded non-compliant vessel triggers a visible HIGH alert that blocks the generate button. PoC KPI report published.
+**Demo state after this milestone:** native app adds "Singapore port entry package" button; a pre-loaded non-compliant vessel triggers a visible HIGH alert that blocks the generate button. PoC KPI report published.
 
 **Deliverables:** `singapore_port_entry_field_map.json` + Regulatory Alert demo on a deliberately non-compliant vessel + PoC KPI report + subscription pricing model draft
 
@@ -80,7 +80,7 @@
 
 ### Milestone 4 — Singapore polish + demo prep (Week 5)
 
-**Demo state after this milestone:** live URL is demo-ready — realistic vessel data, offline mode confirmed, all four differentiators exercisable in a single unscripted walkthrough.
+**Demo state after this milestone:** native app is demo-ready — realistic vessel data, offline mode confirmed, all four differentiators exercisable in a single unscripted walkthrough.
 
 **Deliverables:** End-to-end Singapore package demo on a real or realistic vessel record; all four differentiators exercisable in one flow
 
@@ -94,11 +94,11 @@
 
 ### Milestone 5 — PIER71 submission polish (Weeks 6–7)
 
-**Demo state:** already live since M1; this milestone polishes presentation, records the screen capture, and finalises the application text. No last-minute scramble.
+**Demo state:** native app already running since M1; this milestone polishes presentation, records the screen capture, and finalises the application text. No last-minute scramble.
 
-**Deliverables:** 2-minute screen recording of the live demo + PIER71 application draft ready for submission (deadline: 15 June 2026)
+**Deliverables:** 2-minute screen recording of the native app demo + PIER71 application draft ready for submission (deadline: 15 June 2026)
 
-The live URL already demonstrates all four differentiators. M5 work is polish and narrative, not new features:
+The native app already demonstrates all four differentiators from M1. M5 work is polish and narrative, not new features:
 
 1. **Data → Documents** — maridb R2 data + local crew JSON → one click → FAL 1 + FAL 5 + Singapore package + AIS Evidence; PDF saved locally
 2. **Verifiable Audit Trail** — hash shown post-generation; `verify` endpoint confirms document against AIS voyage record in < 1 second
