@@ -50,10 +50,11 @@
                                   │ queued locally if offline
                                   ▼
   ┌─────────────────────────────────────────────────────┐
-  │  REMOTE (maridb audit log — append-only)            │
-  │  Same AuditRecord; synced via edgesentry-audit      │
-  │  store-and-forward. Queryable by authorities,       │
-  │  P&I Clubs, and agents for root cause analysis.     │
+  │  REMOTE (tamper-proof audit store — append-only)    │
+  │  AuditRecord + payload synced via edgesentry-audit  │
+  │  store-and-forward. Storage backend under           │
+  │  evaluation (immugate / dedicated service).         │
+  │  Queryable by authorities and P&I Clubs.            │
   └─────────────────────────────────────────────────────┘
 ```
 
@@ -156,40 +157,49 @@ Implemented by reusing **`edgesentry-audit`** — the shared Rust crate from `ed
 edgesentry-audit = { path = "../edgesentry-rs/crates/edgesentry-audit" }
 ```
 
-**Dual-copy append-only audit log — neither copy can be modified:**
+**Responsibility boundary — edgesentry-audit is domain-agnostic:**
 
-Every document generation event produces an `AuditRecord` that is written to two independent, append-only stores simultaneously. No raw document content or PII is stored in either — only the actions taken and the cryptographic fingerprints.
+`edgesentry-audit` is an independent library. It knows nothing about vessels, voyages, documents, or AI fields. It receives opaque bytes and returns a sealed record. All maritime semantics live in documaris.
 
 ```
-PDF binary
-    │
-    ▼ compute_payload_hash(pdf_bytes)  → BLAKE3 Hash32
-    │
-    ▼ sign_record(vessel_id, seq, ts, prev_hash, doc_type, ai_field_values, key_hex)
-    │  → AuditRecord {
-    │       seq,                    ← sequence number (gaps detectable)
-    │       payload_hash,           ← BLAKE3 of final PDF
-    │       prev_record_hash,       ← hash of previous record (chain)
-    │       signature,              ← Ed25519 over the full record
-    │       generated_by,           ← user identity
-    │       generated_at,           ← ISO 8601 timestamp
-    │       vessel_id, voyage_id,   ← source data references (no raw data)
-    │       ai_field_values,        ← AI-generated text per field (Class C only, no PII)
-    │       llm_confidence_flags,   ← per-field confidence + reviewer action
-    │       fields_modified,        ← before/after for reviewer edits
-    │       regulatory_alerts,      ← alerts raised, severity, resolution
-    │    }
-    │
-    ├──→ [1] LOCAL audit log (native app, append-only SQLite/flat file)
-    │        Agent's own tamper-evident record; persists on their device.
-    │        Always written first; available immediately, even offline.
-    │
-    ├──→ hash hex embedded in PDF XMP metadata (/DocumentHash)
-    │
-    └──→ [2] REMOTE audit log (maridb, append-only, cloud)
-             Synced via edgesentry-audit store-and-forward.
-             Queryable by authorities and P&I Clubs via verify endpoint.
-             Written when connectivity is available; never blocks generation.
+[documaris]  constructs DocumentAuditPayload (maritime-specific):
+               { vessel_id, voyage_id, doc_type,
+                 generated_by, generated_at,
+                 ai_field_values,        ← Class C only, no PII
+                 llm_confidence_flags,
+                 fields_modified,
+                 regulatory_alerts }
+             → serialize to bytes
+
+[edgesentry-audit]  receives opaque bytes, knows nothing about their meaning:
+             seal(payload_bytes, prev_hash, signing_key)
+             → AuditRecord {
+                  payload_hash,      ← BLAKE3(payload_bytes)
+                  prev_record_hash,  ← hash chain link
+                  signature,         ← Ed25519 over the full record
+                  seq,               ← sequence number
+                  ts,                ← timestamp
+               }
+
+[documaris]  decides where to store (edgesentry-audit does not):
+             AuditRecord + payload_bytes
+               ├──→ [1] LOCAL — native app append-only store
+               │         Agent's own copy; always written first; available offline.
+               ├──→ hash hex embedded in PDF XMP metadata (/DocumentHash)
+               └──→ [2] REMOTE — tamper-proof cloud store (immugate under evaluation)
+                         Synced via edgesentry-audit store-and-forward.
+                         Queryable by authorities and P&I Clubs.
+                         Written when connectivity available; never blocks generation.
+```
+
+**edgesentry-audit's public interface (simplified):**
+```rust
+// All documaris-specific fields are in the opaque payload_bytes.
+// edgesentry-audit seals whatever bytes it receives.
+fn seal(payload_bytes: &[u8], prev_hash: Hash32, key: &SigningKey) -> AuditRecord;
+fn verify(record: &AuditRecord, payload_bytes: &[u8]) -> bool;
+// store-and-forward: knows only the endpoint URL, not the payload semantics
+fn queue_and_sync(record: AuditRecord, payload_bytes: Vec<u8>, endpoint: &Url);
 ```
 
 **Tamper-evidence is structural, not policy:**
@@ -212,9 +222,9 @@ PDF binary
 
 **Root cause analysis:** agents and authorities can query either copy to reconstruct the exact sequence of actions that produced a document — without retrieving any crew PII. Whether a port rejection was caused by an AI error, a reviewer override, post-generation tampering, or a source data issue is answerable from the audit log alone.
 
-**Verification:** `GET /audit/verify?hash=<blake3_hex>` → `{ "verified": true, chain_intact: true, … }`
+**Verification:** `GET /audit/verify?hash=<blake3_hex>` → `{ "verified": true, chain_intact: true, … }` — served by the remote audit store, independent of documaris.
 
-documaris also auto-generates an **AIS Voyage Evidence Summary** companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from maridb's AIS event Parquet data via the AI fill layer and signed with the same Ed25519 key as the primary document. This turns a form generator into a verifiable audit instrument: false declarations become detectable.
+documaris also auto-generates an **AIS Voyage Evidence Summary** companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from maridb's AIS event Parquet data via the AI fill layer. The summary is treated as a payload and sealed by edgesentry-audit identically to any other document — the library does not distinguish it from a FAL form. This turns a form generator into a verifiable audit instrument: false declarations become detectable.
 
 **TrustSG / IMDA alignment:** the Trust Layer directly addresses two TrustSG pillars — Authenticity (Ed25519 signature proves the document originated from verified vessel data) and Integrity (BLAKE3 hash + append-only audit log proves no post-generation modification). This positions documaris as national-grade trust infrastructure for maritime document exchange, not a convenience tool.
 
@@ -260,11 +270,12 @@ vessel/voyage JSON (local cache)    crew JSON (user-provided, local only)
                                 │
               ┌─────────────────┴──────────────────┐
               ▼                                     ▼
-  [1] LOCAL audit log                   [2] REMOTE audit log
-  (native app, append-only)             (maridb, append-only)
-  Written immediately.                  Queued if offline;
-  Agent's own tamper-evident            synced on reconnect
-  record; always available.             via edgesentry-audit
+  [1] LOCAL audit log                   [2] REMOTE audit store
+  (native app, append-only)             (immugate / dedicated
+  Written immediately.                   service, append-only)
+  Agent's own tamper-evident            Queued if offline;
+  record; always available.             synced on reconnect
+                                        via edgesentry-audit
                                         store-and-forward.
 ```
 
