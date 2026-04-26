@@ -256,9 +256,9 @@ The **Hanko-Confidence Score** (0.0–1.0) detects the presence, clarity, and te
 
 | Class | Contents | Examples | Server storage | Retention |
 |---|---|---|---|---|
-| **Class A — PII** | Personal data directly identifying an individual | Crew name, passport number, date of birth | None — local processing only | 0 days — not stored by design |
+| **Class A — PII** | Personal data directly identifying an individual | Crew name, passport number, date of birth, nationality | None — local processing only | 0 days — not stored by design |
 | **Class B — Sensitive** | Vessel compliance status and risk-relevant flags | Certificate validity, incident flags, DG declarations | Cloudflare R2 (maridb-controlled, access-logged) | Per maridb data policy |
-| **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes | R2 + documaris audit log | Audit hashes: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
+| **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers; AI-generated field values (non-PII) | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes, AI-generated cargo description text, AI confidence scores per field | R2 + documaris audit log | Audit hashes: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
 
 ### Data flow boundary
 
@@ -276,7 +276,10 @@ REMOTE read (documaris R2 bucket, S3-compatible — read-only for app):
 
 REMOTE write (maridb audit log, append-only):
   └─ BLAKE3 hash + Ed25519 signature + generation metadata
-     (no document content; no PII; queued locally if offline)
+     + AI-generated field values (Class C — no PII)
+     + field edit history (before/after for reviewer changes)
+     + llm_confidence per field + regulatory_alerts
+     (no crew PII; no raw PDF content; queued locally if offline)
 ```
 
 ### Processing and storage rules
@@ -315,17 +318,21 @@ All document-generation events and manual field edits are audit-logged with role
 
 ### Audit trail per document
 
-Every generated document records the following in the maridb append-only audit log:
+Every generated document records the following in the maridb append-only audit log. No Class A (PII) data is included — crew names, passport numbers, and personal identifiers are never written to the log. All entries are Class C (operational) and support root cause analysis of submission errors and disputes without storing any personal data.
 
-| Field | Value |
-|---|---|
-| `generated_by` | User identity |
-| `generated_at` | ISO 8601 timestamp |
-| `fields_modified` | Field names edited in human review step, with before/after values and editor identity |
-| `llm_confidence_flags` | Fields that triggered confidence < 0.80 warning and how they were resolved |
-| `regulatory_alerts` | Alerts raised, severity, and resolution action |
-| `audit_hash` | BLAKE3 hash of final PDF binary |
-| `signature` | Ed25519 signature |
+| Field | Value | Root cause use |
+|---|---|---|
+| `generated_by` | User identity | Who ran the generation |
+| `generated_at` | ISO 8601 timestamp | When — cross-reference with port rejection timestamp |
+| `vessel_id` / `voyage_id` | maridb source references | Which data snapshot was used; look up in maridb for the exact values at generation time |
+| `audit_hash` | BLAKE3 hash of final PDF binary | Was the submitted PDF the same as the generated PDF? Hash mismatch = tampered after generation |
+| `signature` | Ed25519 signature | Is the document authentic — from a valid documaris instance? |
+| `ai_field_values` | AI-generated text per field (Class C only — no PII fields included) | What exactly did the AI write? Cross-check against source data to identify AI summarisation errors |
+| `llm_confidence_flags` | Per-field confidence score; whether reviewer accepted or corrected | Which fields were uncertain; did the reviewer override a low-confidence output without correcting it? |
+| `fields_modified` | Field names edited in human review step, before/after values, editor identity | Was the submitted content what the AI generated, or did a reviewer change it? |
+| `regulatory_alerts` | Alerts raised, severity, resolution action, reason code | Were compliance warnings present? Were MEDIUM alerts overridden and why? |
+
+**Root cause analysis scenario:** a port authority rejects FAL Form 1 because the cargo description doesn't match the manifest. The agent queries `GET /audit/verify?hash=<blake3_hex>` and finds: `brief_cargo_description` was AI-generated at confidence 0.73 (below 0.80 → amber flag shown); the reviewer accepted without correction; the AI wrote "containerised electronics" while the maridb source (`voyage_id=V20260424`) recorded "2,400 units mobile phones". Root cause identified without storing any crew PII: AI produced a low-confidence summary and the reviewer did not verify it.
 
 Retrievable via `GET /audit/verify?hash=<blake3_hex>`.
 
