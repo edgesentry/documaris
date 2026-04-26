@@ -9,45 +9,24 @@
 
 ## System overview
 
-```
-  ┌─────────────────────────────────────────────────────┐
-  │  REMOTE (maridb)                                    │
-  │  vessel · voyage · cargo · events                   │
-  │  → copies required data to documaris R2 bucket      │
-  └───────────────────────┬─────────────────────────────┘
-                          │ push (maridb job)
-                          ▼
-  ┌─────────────────────────────────────────────────────┐
-  │  REMOTE (documaris R2 bucket — read-only for app)   │
-  │    vessels / voyages / cargo / events (Parquet/JSON) │
-  └───────────────────────┬─────────────────────────────┘
-                          │ download on first run / refresh
-                          ▼
-  ┌─────────────────────────────────────────────────────┐
-  │  LOCAL (documaris native app)                       │
-  │                                                     │
-  │  Local cache (documaris R2 snapshot)                │
-  │    vessels / voyages / cargo / events               │
-  │                             +                       │
-  │  User-provided crew JSON (PII — never leaves app)   │
-  │                             │                       │
-  │            documaris pipeline                       │
-  │   1. Data Fetch  (from local cache)                 │
-  │   2. Field Mapping                                  │
-  │   3. AI Fill  (local OSS model, bundled/downloaded) │
-  │   4. Trust Layer  (BLAKE3 + Ed25519, local key)     │
-  │   5. Regulatory Alert                               │
-  │   6. Render → PDF  (native PDF library)             │
-  │                             │                       │
-  │             PDF → local file system                 │
-  └─────────────────────────────┬───────────────────────┘
-                                │ hash only (no PII, no content)
-                                ▼
-  ┌─────────────────────────────────────────────────────┐
-  │  REMOTE (maridb audit log — append-only)            │
-  │  BLAKE3 hash + Ed25519 signature + generation meta  │
-  │  (queued locally if offline; synced on reconnect)   │
-  └─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    maridb["<b>REMOTE: maridb</b>\nvessel · voyage · cargo · events"]
+    r2["<b>REMOTE: documaris R2 bucket</b>\nread-only for app\nvessels / voyages / cargo / events (Parquet)"]
+    cache["Local cache\n(R2 snapshot)"]
+    crew["User-provided crew JSON\n⚠ PII — never leaves app"]
+    pipeline["<b>LOCAL: documaris native app</b>\n1. Data Fetch\n2. Field Mapping\n3. AI Fill (local OSS model)\n4. Trust Layer (BLAKE3 + Ed25519)\n5. Regulatory Alert\n6. Render → PDF"]
+    pdf["PDF\n→ local file system"]
+    local_log["<b>Local audit log</b>\nappend-only · tamper-evident\nagent's own record · always available"]
+    remote_store["<b>REMOTE: tamper-proof audit store</b>\nappend-only\nappend-only R2 bucket (MVP) → immugate (future)\nqueryable by authorities & P&I Clubs"]
+
+    maridb -->|"push — maridb copy job"| r2
+    r2 -->|"download on first run / refresh"| cache
+    cache --> pipeline
+    crew --> pipeline
+    pipeline --> pdf
+    pipeline -->|"AuditRecord\n(no PII, no raw content)"| local_log
+    local_log -.->|"edgesentry-audit store-and-forward\nqueued if offline"| remote_store
 ```
 
 ---
@@ -149,23 +128,65 @@ Implemented by reusing **`edgesentry-audit`** — the shared Rust crate from `ed
 edgesentry-audit = { path = "../edgesentry-rs/crates/edgesentry-audit" }
 ```
 
-**Signing flow:**
-```
-PDF binary
-    │
-    ▼ compute_payload_hash(pdf_bytes)  → BLAKE3 Hash32
-    │
-    ▼ sign_record(vessel_id, seq, ts, pdf_bytes, prev_hash, "fal_form_1", key_hex)
-    │  → AuditRecord { payload_hash, signature, prev_record_hash, … }
-    │
-    ├──→ hash hex embedded in PDF XMP metadata (/DocumentHash)
-    │
-    └──→ AuditRecord written to maridb audit log (append-only)
+**Remote audit store — MVP and future:**
+
+> **MVP:** an append-only Cloudflare R2 bucket. Tamper-evidence comes from the hash chain and Ed25519 signatures produced by edgesentry-audit — not from R2's storage guarantees. The bucket is write-only (no DELETE, no overwrite); any modification to a stored record breaks the chain and is detectable.
+>
+> **Future:** **immugate** — a commercial service to be built by this team, providing a dedicated tamper-proof audit log with a public Merkle-tree verification API. immugate is not yet built; the R2 bucket is the production interim. The store-and-forward endpoint in edgesentry-audit is the only change needed when immugate ships.
+
+**Responsibility boundary — edgesentry-audit is domain-agnostic:**
+
+`edgesentry-audit` is an independent library. It knows nothing about vessels, voyages, documents, or AI fields. It receives opaque bytes and returns a sealed record. All maritime semantics live in documaris.
+
+```mermaid
+flowchart TD
+    payload["<b>documaris</b> constructs DocumentAuditPayload\nvessel_id · voyage_id · doc_type\ngenerated_by · generated_at\nai_field_values · llm_confidence_flags\nfields_modified · regulatory_alerts\n<i>(Class C only — no PII)</i>"]
+    bytes["serialize → opaque bytes"]
+    seal["<b>edgesentry-audit</b>\nseal(payload_bytes, prev_hash, signing_key)\n<i>domain-agnostic — knows nothing about maritime fields</i>"]
+    record["AuditRecord\npayload_hash (BLAKE3)\nprev_record_hash\nsignature (Ed25519)\nseq · ts"]
+    xmp["hash embedded in\nPDF XMP /DocumentHash"]
+    local["<b>[1] LOCAL audit log</b>\nnative app · append-only\nwritten first · always available"]
+    remote["<b>[2] REMOTE audit store</b>\nappend-only R2 bucket (MVP)\nimmugate · future commercial service"]
+
+    payload --> bytes --> seal --> record
+    record --> xmp
+    record --> local
+    local -.->|"store-and-forward\nqueued if offline"| remote
 ```
 
-**Verification:** `GET /audit/verify?hash=<blake3_hex>` → `{ "verified": true, … }`
+**edgesentry-audit's public interface (simplified):**
+```rust
+// All documaris-specific fields are in the opaque payload_bytes.
+// edgesentry-audit seals whatever bytes it receives.
+fn seal(payload_bytes: &[u8], prev_hash: Hash32, key: &SigningKey) -> AuditRecord;
+fn verify(record: &AuditRecord, payload_bytes: &[u8]) -> bool;
+// store-and-forward: knows only the endpoint URL, not the payload semantics
+fn queue_and_sync(record: AuditRecord, payload_bytes: Vec<u8>, endpoint: &Url);
+```
 
-documaris also auto-generates an **AIS Voyage Evidence Summary** companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from maridb's AIS event Parquet data via the AI fill layer and signed with the same Ed25519 key as the primary document. This turns a form generator into a verifiable audit instrument: false declarations become detectable.
+**Tamper-evidence is structural, not policy:**
+- **Hash chain:** each record includes `prev_record_hash`. Inserting, modifying, or deleting any record breaks all subsequent hashes in the chain — detectable by any party holding a copy.
+- **Ed25519 signature:** each record is signed with the operator's key. Modifying a record breaks its signature.
+- **Dual copy:** the local log and the remote log can be cross-verified against each other. An attacker would need to compromise both simultaneously to suppress evidence.
+- **Sequence numbers:** gaps in the sequence are detectable — records cannot be silently dropped.
+
+**What the audit log records (no PII, full action trace):**
+
+| What happened | What's recorded |
+|---|---|
+| Document generated | who, when, which vessel/voyage (by ID), document type |
+| AI filled a field | what text was generated, confidence score |
+| Reviewer accepted a low-confidence field | that they accepted it, the confidence at the time |
+| Reviewer corrected a field | before value, after value, editor identity |
+| Regulatory alert raised | severity, rule triggered, resolution action |
+| MEDIUM alert overridden | reason code entered by reviewer, their identity |
+| Document hash embedded in PDF | the hash (not the document content) |
+
+**Root cause analysis:** agents and authorities can query either copy to reconstruct the exact sequence of actions that produced a document — without retrieving any crew PII. Whether a port rejection was caused by an AI error, a reviewer override, post-generation tampering, or a source data issue is answerable from the audit log alone.
+
+**Verification:** `GET /audit/verify?hash=<blake3_hex>` → `{ "verified": true, chain_intact: true, … }` — served by the remote audit store, independent of documaris.
+
+documaris also auto-generates an **AIS Voyage Evidence Summary** companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from maridb's AIS event Parquet data via the AI fill layer. The summary is treated as a payload and sealed by edgesentry-audit identically to any other document — the library does not distinguish it from a FAL form. This turns a form generator into a verifiable audit instrument: false declarations become detectable.
 
 **TrustSG / IMDA alignment:** the Trust Layer directly addresses two TrustSG pillars — Authenticity (Ed25519 signature proves the document originated from verified vessel data) and Integrity (BLAKE3 hash + append-only audit log proves no post-generation modification). This positions documaris as national-grade trust infrastructure for maritime document exchange, not a convenience tool.
 
@@ -175,14 +196,20 @@ documaris also auto-generates an **AIS Voyage Evidence Summary** companion docum
 
 At generation time, the AI fill layer cross-references the vessel snapshot against a per-port JSON regulatory knowledge base and returns a structured conflict list:
 
-```
-vessel_snapshot  +  port_regulatory_kb
-                          │
-                          ▼ LLM conflict check
-                          │
-               ── HIGH ───┼── block submission
-               ── MEDIUM ─┼── warn; Reviewer override with reason code, audit-logged
-               ── LOW ────┼── informational note in PDF cover sheet
+```mermaid
+flowchart LR
+    vessel["vessel snapshot"]
+    kb["port regulatory KB\n(JSON, per port)"]
+    llm["AI conflict check"]
+    high["🔴 HIGH\nblock submission"]
+    medium["🟡 MEDIUM\nwarn · reviewer override\nreason code · audit-logged"]
+    low["🟢 LOW\nnote in PDF cover sheet"]
+
+    vessel --> llm
+    kb --> llm
+    llm --> high
+    llm --> medium
+    llm --> low
 ```
 
 No hard-coded rule logic; the AI model evaluates natural-language rule descriptions against vessel data. The knowledge base is updated by a combination of automated port-notice monitoring and manual review.
@@ -197,23 +224,25 @@ This layer shifts documaris from "document automation tool" (commoditised) to **
 
 All forms — including those containing crew PII — are rendered inside the native app. There is no server-side rendering path and no split between PII and non-PII forms. The server-side / client-side duality that a browser-based approach required is eliminated.
 
-```
-vessel/voyage JSON (local cache)    crew JSON (user-provided, local only)
-              │                                    │
-              └─────────────────┬──────────────────┘
-                                ▼
-         Field map → Tera template → HTML → native PDF renderer
-                                ▼
-                     Trust Layer: BLAKE3 hash embedded in XMP
-                                 Ed25519 signature applied
-                                ▼
-                     PDF → local file system (Save dialog)
-                                ▼
-                   hash + signature → maridb audit log
-                   (queued if offline; synced on reconnect)
+```mermaid
+flowchart TD
+    vessel_json["vessel/voyage JSON\n(local cache)"]
+    crew_json["crew JSON\n(user-provided · local only)\n⚠ PII — never transmitted"]
+    render["Field map → Tera template\n→ HTML → native PDF renderer"]
+    trust["Trust Layer\nBLAKE3 hash in XMP · Ed25519 signature"]
+    pdf_out["PDF → local file system"]
+    local_log["<b>[1] LOCAL audit log</b>\nwritten immediately\nagent's own record"]
+    remote_store["<b>[2] REMOTE audit store</b>\nappend-only R2 bucket (MVP)\nimmugate · future"]
+
+    vessel_json --> render
+    crew_json --> render
+    render --> trust
+    trust --> pdf_out
+    trust -->|"AuditRecord + payload_bytes"| local_log
+    local_log -.->|"edgesentry-audit\nstore-and-forward"| remote_store
 ```
 
-**Offline-first:** The entire pipeline — data fetch cache, AI fill model, PDF render, and signing key — runs without a network connection. A ship's steel engine room with no signal is a supported environment. The audit log hash write is the only network-dependent step, and it is queued with store-and-forward (via edgesentry-audit) until connectivity resumes.
+**Offline-first:** The entire pipeline — data fetch cache, AI fill model, PDF render, signing key, and local audit log write — runs without a network connection. A ship's steel engine room with no signal is a supported environment. The remote audit log sync is the only network-dependent step, and it is queued with store-and-forward (via edgesentry-audit) until connectivity resumes. The local audit log is always written first, so the agent's own tamper-evident record is available immediately regardless of connectivity.
 
 **Privacy:** Because everything runs inside the native app process, there is no server-side code path at all for document generation. The privacy guarantee is structurally enforced, not a matter of configuration. Veson Nautical, ShipNet, and Helm CONNECT all require active server connectivity to render documents; documaris eliminates that dependency entirely.
 
@@ -256,9 +285,9 @@ The **Hanko-Confidence Score** (0.0–1.0) detects the presence, clarity, and te
 
 | Class | Contents | Examples | Server storage | Retention |
 |---|---|---|---|---|
-| **Class A — PII** | Personal data directly identifying an individual | Crew name, passport number, date of birth | None — local processing only | 0 days — not stored by design |
+| **Class A — PII** | Personal data directly identifying an individual | Crew name, passport number, date of birth, nationality | None — local processing only | 0 days — not stored by design |
 | **Class B — Sensitive** | Vessel compliance status and risk-relevant flags | Certificate validity, incident flags, DG declarations | Cloudflare R2 (maridb-controlled, access-logged) | Per maridb data policy |
-| **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes | R2 + documaris audit log | Audit hashes: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
+| **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers; AI-generated field values (non-PII) | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes, AI-generated cargo description text, AI confidence scores per field | maridb R2 (read by app) + append-only R2 audit bucket (AuditRecord + DocumentAuditPayload); immugate in future | Audit records: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
 
 ### Data flow boundary
 
@@ -274,16 +303,20 @@ REMOTE read (documaris R2 bucket, S3-compatible — read-only for app):
   └─ vessel/voyage/cargo Parquet — copied here by maridb; downloaded on
      first run and on refresh; no PII ever stored here
 
-REMOTE write (maridb audit log, append-only):
-  └─ BLAKE3 hash + Ed25519 signature + generation metadata
-     (no document content; no PII; queued locally if offline)
+REMOTE write (tamper-proof audit store — append-only R2 bucket (MVP) → immugate (future), append-only):
+  └─ AuditRecord (BLAKE3 hash, Ed25519 signature, seq, ts)
+     + DocumentAuditPayload (Class C — no PII, no raw PDF content)
+       vessel_id, voyage_id, doc_type, generated_by, generated_at,
+       ai_field_values, llm_confidence per field, fields_modified,
+       regulatory_alerts
+     (queued locally by edgesentry-audit store-and-forward if offline)
 ```
 
 ### Processing and storage rules
 
 - **Class A** is processed inside the native app only. It is never transmitted to any remote system. No network call contains Class A data — verifiable by code inspection.
 - **Class B / C** is downloaded from maridb R2 and processed locally inside the app. It is not re-uploaded to any documaris server.
-- The only remote write is the audit log entry: BLAKE3 hash + Ed25519 signature + generation metadata. No document content is stored remotely.
+- The only remote write is the AuditRecord + DocumentAuditPayload (Class C) to the tamper-proof audit store (append-only R2 bucket, MVP). No document content and no PII is stored remotely.
 
 ### Access control
 
@@ -315,17 +348,21 @@ All document-generation events and manual field edits are audit-logged with role
 
 ### Audit trail per document
 
-Every generated document records the following in the maridb append-only audit log:
+Every generated document records the following in the maridb append-only audit log. No Class A (PII) data is included — crew names, passport numbers, and personal identifiers are never written to the log. All entries are Class C (operational) and support root cause analysis of submission errors and disputes without storing any personal data.
 
-| Field | Value |
-|---|---|
-| `generated_by` | User identity |
-| `generated_at` | ISO 8601 timestamp |
-| `fields_modified` | Field names edited in human review step, with before/after values and editor identity |
-| `llm_confidence_flags` | Fields that triggered confidence < 0.80 warning and how they were resolved |
-| `regulatory_alerts` | Alerts raised, severity, and resolution action |
-| `audit_hash` | BLAKE3 hash of final PDF binary |
-| `signature` | Ed25519 signature |
+| Field | Value | Root cause use |
+|---|---|---|
+| `generated_by` | User identity | Who ran the generation |
+| `generated_at` | ISO 8601 timestamp | When — cross-reference with port rejection timestamp |
+| `vessel_id` / `voyage_id` | maridb source references | Which data snapshot was used; look up in maridb for the exact values at generation time |
+| `audit_hash` | BLAKE3 hash of final PDF binary | Was the submitted PDF the same as the generated PDF? Hash mismatch = tampered after generation |
+| `signature` | Ed25519 signature | Is the document authentic — from a valid documaris instance? |
+| `ai_field_values` | AI-generated text per field (Class C only — no PII fields included) | What exactly did the AI write? Cross-check against source data to identify AI summarisation errors |
+| `llm_confidence_flags` | Per-field confidence score; whether reviewer accepted or corrected | Which fields were uncertain; did the reviewer override a low-confidence output without correcting it? |
+| `fields_modified` | Field names edited in human review step, before/after values, editor identity | Was the submitted content what the AI generated, or did a reviewer change it? |
+| `regulatory_alerts` | Alerts raised, severity, resolution action, reason code | Were compliance warnings present? Were MEDIUM alerts overridden and why? |
+
+**Root cause analysis scenario:** a port authority rejects FAL Form 1 because the cargo description doesn't match the manifest. The agent queries `GET /audit/verify?hash=<blake3_hex>` and finds: `brief_cargo_description` was AI-generated at confidence 0.73 (below 0.80 → amber flag shown); the reviewer accepted without correction; the AI wrote "containerised electronics" while the maridb source (`voyage_id=V20260424`) recorded "2,400 units mobile phones". Root cause identified without storing any crew PII: AI produced a low-confidence summary and the reviewer did not verify it.
 
 Retrievable via `GET /audit/verify?hash=<blake3_hex>`.
 
