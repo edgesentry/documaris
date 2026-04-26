@@ -1,43 +1,47 @@
 # documaris — Architecture
 
 - **Date:** 2026-04-26 (updated from 2026-04-24)
-- **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off; AI model selection and local-processing delivery mechanism under review
+- **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
+- **Delivery:** Native desktop app (macOS / Windows / Linux); local open-source AI model (Apache 2.0 / MIT, model TBD)
+- **Key invariants:** vessel/voyage/cargo data pulled from maridb R2; crew PII supplied by user locally; only BLAKE3 hash transits the network
 
 ---
 
 ## System overview
 
 ```
-                     ┌──────────────────────────────────┐
-                     │               maridb             │
-                     │  vessel · voyage · cargo · events│
-                     │  (ingestion + transformation)    │
-                     └─────────────────┬────────────────┘
-                                       │ Parquet / JSON (DuckLake)
-                                       ▼
-                     ┌──────────────────────────────────┐
-                     │      Cloudflare R2 (DuckLake)    │
-                     │  vessels/   voyages/   cargo/    │
-                     │  events/   (no crew PII)         │
-                     └─────────────────┬────────────────┘
-                                       │ S3-compatible
-                                       ▼
-                     ┌──────────────────────────────────┐
-                     │         documaris pipeline       │
-                     │  1. Data Fetch                   │
-                     │  2. Field Mapping                │
-                     │  3. AI Fill                      │
-                     │  4. Trust Layer                  │
-                     │  5. Regulatory Alert             │
-                     │  6. Render → PDF                 │
-                     └────────────┬───────────┬─────────┘
-                                  │           │
-                      server-side PDF    local PDF
-                      (non-PII forms)    (crew PII — local only)
-                                  │           │
-                                  ▼           ▼
-                            audit log    local download
-                            (hash only)  (no server upload)
+  ┌─────────────────────────────────────────────────────┐
+  │  REMOTE (maridb)                                    │
+  │  vessel · voyage · cargo · events                   │
+  │  → writes to Cloudflare R2 (Parquet / JSON)         │
+  └───────────────────────┬─────────────────────────────┘
+                          │ download on first run / refresh
+                          ▼
+  ┌─────────────────────────────────────────────────────┐
+  │  LOCAL (documaris native app)                       │
+  │                                                     │
+  │  Local cache (maridb R2 snapshot)                   │
+  │    vessels / voyages / cargo / events               │
+  │                             +                       │
+  │  User-provided crew JSON (PII — never leaves app)   │
+  │                             │                       │
+  │            documaris pipeline                       │
+  │   1. Data Fetch  (from local cache)                 │
+  │   2. Field Mapping                                  │
+  │   3. AI Fill  (local OSS model, bundled/downloaded) │
+  │   4. Trust Layer  (BLAKE3 + Ed25519, local key)     │
+  │   5. Regulatory Alert                               │
+  │   6. Render → PDF  (native PDF library)             │
+  │                             │                       │
+  │             PDF → local file system                 │
+  └─────────────────────────────┬───────────────────────┘
+                                │ hash only (no PII, no content)
+                                ▼
+  ┌─────────────────────────────────────────────────────┐
+  │  REMOTE (maridb audit log — append-only)            │
+  │  BLAKE3 hash + Ed25519 signature + generation meta  │
+  │  (queued locally if offline; synced on reconnect)   │
+  └─────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -59,7 +63,7 @@ s3://maridb-bucket/
 
 DuckDB runs in-process (Rust `duckdb` crate, `bundled` feature) to JOIN across Parquet files with a single SQL query and output a flat JSON record. The `object_store` crate (`aws` feature) handles S3-compatible R2 download; swapping to a local file system for development requires no code change.
 
-**Crew PII is never stored in R2.** It is loaded client-side in the browser and never transits the documaris server (see Layer 6 and the privacy boundary section).
+**Crew PII is never stored in R2.** It is provided by the user directly inside the native app and never leaves the local machine (see Layer 6 and the privacy boundary section).
 
 **Key dependencies:**
 ```toml
@@ -176,37 +180,27 @@ This layer shifts documaris from "document automation tool" (commoditised) to **
 
 ## Layer 6 — Render
 
-Two render paths, determined by data sensitivity:
+All forms — including those containing crew PII — are rendered inside the native app. There is no server-side rendering path and no split between PII and non-PII forms. The server-side / client-side duality that a browser-based approach required is eliminated.
 
-**Server-side (non-PII forms):**
 ```
-Field map JSON → Tera/Jinja2 template → HTML → WeasyPrint → PDF
-                                                                │
-                                                         Trust Layer hash embedded
-                                                                │
-                                                         returned as file download
-```
-
-**Local processing path (FAL Form 5 — crew PII):**
-```
-vessel/voyage JSON (maridb)      crew JSON (local file)
-              │                         │
-              └────────────┬────────────┘
-                           ▼
-              PDF assembled locally (delivery mechanism under review)
-                           │
-                           ▼
-              PDF → local download
-                           │
-                           ▼ hash only (no PII)
-              POST to maridb audit log
+vessel/voyage JSON (local cache)    crew JSON (user-provided, local only)
+              │                                    │
+              └─────────────────┬──────────────────┘
+                                ▼
+         Field map → Tera template → HTML → native PDF renderer
+                                ▼
+                     Trust Layer: BLAKE3 hash embedded in XMP
+                                 Ed25519 signature applied
+                                ▼
+                     PDF → local file system (Save dialog)
+                                ▼
+                   hash + signature → maridb audit log
+                   (queued if offline; synced on reconnect)
 ```
 
-> **⚠ Delivery mechanism under review:** Options under consideration include a native desktop/mobile app and a browser-based approach (WASM). The privacy guarantee is delivery-mechanism-independent: crew PII is never transmitted to or stored on the server regardless of which approach is chosen.
+**Offline-first:** The entire pipeline — data fetch cache, AI fill model, PDF render, and signing key — runs without a network connection. A ship's steel engine room with no signal is a supported environment. The audit log hash write is the only network-dependent step, and it is queued with store-and-forward (via edgesentry-audit) until connectivity resumes.
 
-**Offline-first capability:**
-
-The local processing path allows FAL Form 5 to be generated entirely offline — inside a ship's steel engine room with no signal — with the document hash queued for audit log sync when connectivity resumes. Veson Nautical, ShipNet, and Helm CONNECT all require active server connectivity to render documents; the local path eliminates that dependency for crew PII forms.
+**Privacy:** Because everything runs inside the native app process, there is no server-side code path at all for document generation. The privacy guarantee is structurally enforced, not a matter of configuration. Veson Nautical, ShipNet, and Helm CONNECT all require active server connectivity to render documents; documaris eliminates that dependency entirely.
 
 ---
 
@@ -229,7 +223,7 @@ smartphone photo (JPEG)
         }
       }
     │
-    ▼ Intermediate JSON review UI (browser)
+    ▼ Intermediate JSON review UI (native app)
       All fields editable; low-confidence fields highlighted
       Hanko-Confidence Score meter + NACCS risk indicator
       "Confirm and proceed" gate before NACCS format conversion
@@ -254,18 +248,27 @@ The **Hanko-Confidence Score** (0.0–1.0) detects the presence, clarity, and te
 ### Data flow boundary
 
 ```
-TRUSTED ZONE (server):   Class B/C — vessel, voyage, cargo, regulatory KB, audit records
+LOCAL (documaris native app):
+  ├─ Class A (PII)     — crew data supplied by user; never transmitted
+  ├─ Class B/C         — vessel/voyage/cargo pulled from maridb R2, cached locally
+  ├─ AI model          — bundled/downloaded; runs fully offline
+  ├─ Regulatory KB     — bundled; updated via app update mechanism
+  └─ PDF output        — written to local file system only
 
-PII ZONE (local-only):   Class A — crew names, passport numbers, DOB
-                          loaded from local file; processed locally
-                          only hash transits to server — no Class A code path on server
+REMOTE read (maridb R2, S3-compatible):
+  └─ vessel/voyage/cargo Parquet — downloaded on first run and on refresh;
+     no PII ever stored here
+
+REMOTE write (maridb audit log, append-only):
+  └─ BLAKE3 hash + Ed25519 signature + generation metadata
+     (no document content; no PII; queued locally if offline)
 ```
 
 ### Processing and storage rules
 
-- **Class A** is processed locally only. It is never transmitted to or persisted on the documaris server. No Class A code path exists on the server — verifiable by code inspection.
-- **Class B / C** may be processed server-side for document generation and compliance checking.
-- The server stores only hash-only audit artifacts (BLAKE3 hash, Ed25519 signature, generation metadata — no document content).
+- **Class A** is processed inside the native app only. It is never transmitted to any remote system. No network call contains Class A data — verifiable by code inspection.
+- **Class B / C** is downloaded from maridb R2 and processed locally inside the app. It is not re-uploaded to any documaris server.
+- The only remote write is the audit log entry: BLAKE3 hash + Ed25519 signature + generation metadata. No document content is stored remotely.
 
 ### Access control
 
@@ -323,9 +326,9 @@ Retrievable via `GET /audit/verify?hash=<blake3_hex>`.
 
 | Regulation | Mechanism |
 |---|---|
-| Singapore PDPA | Class A processed client-side only; no cross-border transfer to documaris servers |
-| Japan APPI | Same client-side processing; Claude API OCR (Phase 2) conditional on Anthropic Data Processing Agreement |
-| GDPR (EU-flagged vessels) | Client-side processing satisfies data minimisation; no Class A data stored server-side |
+| Singapore PDPA | Class A processed inside native app only; no cross-border transfer of PII; no documaris server receives crew data |
+| Japan APPI | Same local processing; Phase 2 OCR runs a local model — no PII transmitted to any cloud service |
+| GDPR (EU-flagged vessels) | Local processing satisfies data minimisation; no Class A data stored or transmitted |
 
 This policy defines data classification, retention periods, role-based approval gates, audit log contents, and incident response SLAs as implementation requirements — making compliance posture operationally auditable rather than a matter of declaration.
 
@@ -356,17 +359,18 @@ One `Cargo.lock` for the entire repo; all products share dependency versions.
 
 | Component | Technology |
 |---|---|
-| Backend pipeline | Rust (`documaris-core` + `documaris-cli` crates); Python FastAPI for rapid prototype |
-| AI fill — text | Local open-source model (Apache 2.0 / MIT licence, model TBD) via `LlmProvider` trait |
+| App delivery | Native desktop app (macOS / Windows / Linux); distributable installer |
+| Core pipeline | Rust (`documaris-core` + `documaris-cli` crates) |
+| AI fill — text | Local open-source model, Apache 2.0 / MIT licence (model TBD); bundled or downloaded on first run; runs fully offline via `LlmProvider` trait |
 | AI fill — vision / OCR (Phase 2) | Local multimodal model (model TBD) |
-| PDF render — server | WeasyPrint (HTML/CSS → PDF) |
-| PDF render — local (crew PII) | Delivery mechanism under review (native app or WASM) |
-| Template engine | Tera (Rust) / Jinja2 (Python) — same syntax |
+| PDF render | Native PDF library (all forms, including PII; single render path) |
+| Template engine | Tera (Rust) |
 | Document hashing + signing | `edgesentry-audit` path dep — BLAKE3 + Ed25519 |
-| Data fetch | `object_store` crate, `aws` feature (S3-compatible R2) |
+| Data fetch | `object_store` crate, `aws` feature (S3-compatible R2 download) |
 | In-process query | DuckDB (`duckdb` crate, `bundled` feature) |
-| Regulatory KB | JSON per port + LLM eval at generation time |
-| Offline-first | Local processing path (implementation TBD) |
+| Local data cache | App-local directory; vessel/voyage/cargo Parquet snapshots from R2 |
+| Regulatory KB | JSON per port, bundled with app; AI eval at generation time |
+| Audit log sync | edgesentry-audit store-and-forward; queued locally when offline |
 | Data lake | Cloudflare R2 (S3-compatible; maridb writes, documaris reads) |
 
 ---
