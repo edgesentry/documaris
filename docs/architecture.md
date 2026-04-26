@@ -3,7 +3,7 @@
 - **Date:** 2026-04-26 (updated from 2026-04-24)
 - **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
 - **Delivery:** Native desktop app (macOS / Windows / Linux); local open-source AI model (Apache 2.0 / MIT, model TBD)
-- **Key invariants:** vessel/voyage/cargo data pulled from maridb R2; crew PII supplied by user locally; only BLAKE3 hash transits the network
+- **Key invariants:** vessel/voyage/cargo data pulled from documaris R2 bucket (maridb copies into it); crew PII supplied by user locally; only BLAKE3 hash transits the network
 
 ---
 
@@ -13,14 +13,20 @@
   ┌─────────────────────────────────────────────────────┐
   │  REMOTE (maridb)                                    │
   │  vessel · voyage · cargo · events                   │
-  │  → writes to Cloudflare R2 (Parquet / JSON)         │
+  │  → copies required data to documaris R2 bucket      │
+  └───────────────────────┬─────────────────────────────┘
+                          │ push (maridb job)
+                          ▼
+  ┌─────────────────────────────────────────────────────┐
+  │  REMOTE (documaris R2 bucket — read-only for app)   │
+  │    vessels / voyages / cargo / events (Parquet/JSON) │
   └───────────────────────┬─────────────────────────────┘
                           │ download on first run / refresh
                           ▼
   ┌─────────────────────────────────────────────────────┐
   │  LOCAL (documaris native app)                       │
   │                                                     │
-  │  Local cache (maridb R2 snapshot)                   │
+  │  Local cache (documaris R2 snapshot)                │
   │    vessels / voyages / cargo / events               │
   │                             +                       │
   │  User-provided crew JSON (PII — never leaves app)   │
@@ -48,20 +54,29 @@
 
 ## Layer 1 — Data Fetch
 
-maridb owns all data ingestion and transformation pipelines — vessel registry, voyage management, cargo manifests, and AIS event streams. It writes to Cloudflare R2 in DuckLake format (Parquet for structured records, JSON for event streams). documaris reads directly from maridb's R2 bucket — no REST API in the hot path.
+documaris reads exclusively from its own Cloudflare R2 bucket. maridb is responsible for copying the data documaris needs into this bucket. This keeps the dependency clean: maridb serves multiple applications (arktrace, documaris, and future products) and adding direct cross-app R2 bucket access would create tight coupling between consumers.
 
-**R2 layout (target schema — to be implemented by maridb):**
+**Responsibility split:**
+
+| Responsibility | Owner |
+|---|---|
+| Ingesting raw vessel, voyage, cargo, and AIS data | maridb |
+| Transforming and writing data to the documaris R2 bucket | maridb (copy job) |
+| Reading from the documaris R2 bucket | documaris app only |
+| Schema of the documaris R2 bucket | Agreed jointly at M0; owned by documaris |
+
+**documaris R2 layout (target schema — copy job implemented by maridb):**
 ```
-s3://maridb-bucket/
+s3://documaris-bucket/
   vessels/vessel_id=IMO1234567/data.parquet   ← name, flag, IMO, GT, LOA, certificates
   voyages/voyage_id=V20260424/data.parquet    ← departure/arrival port, ETA, ETD
   cargo/voyage_id=V20260424/data.parquet      ← HS codes, quantities, DG flags, BL refs
   events/vessel_id=IMO1234567/2026-04-24.json ← AIS position fixes, port entry/exit
 ```
 
-> **Note:** this schema is a design target. The R2 partition layout must be agreed between maridb and documaris as part of the Milestone 0 schema contract. maridb's current R2 output is structured around AIS and vessel scoring data consumed by arktrace (the shadow fleet detection application at [github.com/edgesentry/arktrace](https://github.com/edgesentry/arktrace)); the vessel/voyage/cargo document model required by documaris is a separate schema that maridb must implement.
+> **Schema contract (M0):** the documaris R2 partition layout is the interface contract between maridb and documaris. It must be agreed before Milestone 0 completes. maridb's existing R2 output (AIS and vessel scoring data for arktrace) uses a different schema; the copy job for documaris is a separate pipeline that maridb must implement without modifying its existing outputs.
 
-DuckDB runs in-process (Rust `duckdb` crate, `bundled` feature) to JOIN across Parquet files with a single SQL query and output a flat JSON record. The `object_store` crate (`aws` feature) handles S3-compatible R2 download; swapping to a local file system for development requires no code change.
+DuckDB runs in-process (Rust `duckdb` crate, `bundled` feature) to JOIN across Parquet files with a single SQL query and output a flat JSON record. The `object_store` crate (`aws` feature) handles S3-compatible download from the documaris R2 bucket; swapping to a local file system for development requires no code change.
 
 **Crew PII is never stored in R2.** It is provided by the user directly inside the native app and never leaves the local machine (see Layer 6 and the privacy boundary section).
 
@@ -255,9 +270,9 @@ LOCAL (documaris native app):
   ├─ Regulatory KB     — bundled; updated via app update mechanism
   └─ PDF output        — written to local file system only
 
-REMOTE read (maridb R2, S3-compatible):
-  └─ vessel/voyage/cargo Parquet — downloaded on first run and on refresh;
-     no PII ever stored here
+REMOTE read (documaris R2 bucket, S3-compatible — read-only for app):
+  └─ vessel/voyage/cargo Parquet — copied here by maridb; downloaded on
+     first run and on refresh; no PII ever stored here
 
 REMOTE write (maridb audit log, append-only):
   └─ BLAKE3 hash + Ed25519 signature + generation metadata
@@ -366,12 +381,12 @@ One `Cargo.lock` for the entire repo; all products share dependency versions.
 | PDF render | Native PDF library (all forms, including PII; single render path) |
 | Template engine | Tera (Rust) |
 | Document hashing + signing | `edgesentry-audit` path dep — BLAKE3 + Ed25519 |
-| Data fetch | `object_store` crate, `aws` feature (S3-compatible R2 download) |
+| Data fetch | `object_store` crate, `aws` feature (S3-compatible; reads from documaris R2 bucket only) |
 | In-process query | DuckDB (`duckdb` crate, `bundled` feature) |
-| Local data cache | App-local directory; vessel/voyage/cargo Parquet snapshots from R2 |
+| Local data cache | App-local directory; vessel/voyage/cargo Parquet snapshots from documaris R2 |
 | Regulatory KB | JSON per port, bundled with app; AI eval at generation time |
 | Audit log sync | edgesentry-audit store-and-forward; queued locally when offline |
-| Data lake | Cloudflare R2 (S3-compatible; maridb writes, documaris reads) |
+| Data lake | Cloudflare R2 — documaris bucket (maridb copy job writes; documaris app reads) |
 
 ---
 

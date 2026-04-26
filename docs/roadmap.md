@@ -23,7 +23,7 @@
 - Define a single vessel + voyage + cargo mock record matching the maridb DuckLake Parquet schema
 - Map every FAL Form 1 field to its maridb source, fill type, and AI-fill-required flag
 - Cross-check every field against IMO FAL Convention Annex for completeness
-- Agree R2 partition layout with maridb (schema contract: which fields live in which Parquet file); confirm crew PII explicitly excluded from R2
+- Agree schema for the documaris R2 bucket with maridb (schema contract: which fields, which Parquet partition layout); this is the interface contract for maridb's copy job — maridb's own R2 output is not modified; confirm crew PII is explicitly excluded from the documaris bucket
 - Confirm model download / bundling strategy: size budget, first-run UX, storage location
 
 ---
