@@ -15,7 +15,8 @@ export default defineConfig({
     target: "es2020",
   },
   test: {
-    environment: "node",
     globals: true,
+    environment: "jsdom",
+    setupFiles: ["src/test-setup.ts"],
   },
 });
