@@ -1,0 +1,46 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "app/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy documaris → documaris.pages.dev
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Build
+        working-directory: app
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        working-directory: app
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:'%s' | LC_ALL=C tr -cd '[:print:]' | cut -c1-72)
+          npx wrangler pages deploy dist \
+            --project-name=documaris \
+            --branch=main \
+            --commit-dirty=true \
+            --commit-message="${COMMIT_MSG}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
