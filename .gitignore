@@ -4,3 +4,5 @@ _outputs/
 .pytest_cache
 __pycache__
 .DS_Store
+app/tsconfig.tsbuildinfo
+app/dist/
