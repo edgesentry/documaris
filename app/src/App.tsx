@@ -1,42 +1,68 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { VoyageSelector } from "./components/VoyageSelector.js";
 import { AlertList } from "./components/AlertList.js";
 import { AuditPanel } from "./components/AuditPanel.js";
 import { FieldAnalysis } from "./components/FieldAnalysis.js";
 import { runPipeline, type PipelineResult } from "./lib/pipeline.js";
-import type { Scenario } from "./lib/fixtures.js";
+import { SCENARIOS, type Scenario } from "./lib/fixtures.js";
+import { loadClarusScenarios } from "./lib/clarusData.js";
 
 type Phase =
-  | { tag: "select" }
-  | { tag: "generating"; scenario: Scenario }
-  | { tag: "result"; scenario: Scenario; result: PipelineResult }
-  | { tag: "error"; message: string };
+  | { tag: "select"; scenarios: Scenario[]; loadingClarus: boolean }
+  | { tag: "generating"; scenario: Scenario; scenarios: Scenario[] }
+  | { tag: "result"; scenario: Scenario; scenarios: Scenario[]; result: PipelineResult }
+  | { tag: "error"; message: string; scenarios: Scenario[] };
 
 export default function App() {
-  const [phase, setPhase] = useState<Phase>({ tag: "select" });
+  const [phase, setPhase] = useState<Phase>({
+    tag: "select",
+    scenarios: SCENARIOS,
+    loadingClarus: true,
+  });
 
-  const handleSelect = useCallback(async (scenario: Scenario) => {
-    setPhase({ tag: "generating", scenario });
+  // Load live vessel data from clarus in the background; fall back to static fixtures
+  useEffect(() => {
+    loadClarusScenarios()
+      .then((live) => {
+        setPhase((p) =>
+          p.tag === "select"
+            ? { ...p, scenarios: live, loadingClarus: false }
+            : p
+        );
+      })
+      .catch(() => {
+        setPhase((p) =>
+          p.tag === "select" ? { ...p, loadingClarus: false } : p
+        );
+      });
+  }, []);
+
+  const handleSelect = useCallback(async (scenario: Scenario, scenarios: Scenario[]) => {
+    setPhase((p) => ({ tag: "generating", scenario, scenarios: "scenarios" in p ? p.scenarios : scenarios }));
     try {
       const result = await runPipeline(scenario.csv);
-      setPhase({ tag: "result", scenario, result });
+      setPhase((p) => ({ tag: "result", scenario, scenarios: "scenarios" in p ? p.scenarios : scenarios, result }));
     } catch (e) {
-      setPhase({ tag: "error", message: String(e) });
+      setPhase((p) => ({ tag: "error", message: String(e), scenarios: "scenarios" in p ? p.scenarios : scenarios }));
     }
   }, []);
 
   if (phase.tag === "select") {
-    return <VoyageSelector onSelect={handleSelect} />;
+    return (
+      <VoyageSelector
+        scenarios={phase.scenarios}
+        loadingClarus={phase.loadingClarus}
+        onSelect={(s) => handleSelect(s, phase.scenarios)}
+      />
+    );
   }
 
   if (phase.tag === "generating") {
     return (
       <div className="loading">
         <div className="spinner" />
-        <p>
-          Running edgesentry pipeline for <strong>{phase.scenario.vesselName}</strong>…
-        </p>
-        <p className="loading-sub">Parsing CSV → filling fields → checking compliance → sealing AuditRecord</p>
+        <p>Generating FAL Form 1 for <strong>{phase.scenario.vesselName}</strong>…</p>
+        <p className="loading-sub">Parsing → filling fields → compliance check → sealing AuditRecord</p>
       </div>
     );
   }
@@ -46,7 +72,9 @@ export default function App() {
       <div className="error-screen">
         <h2>Pipeline error</h2>
         <pre>{phase.message}</pre>
-        <button onClick={() => setPhase({ tag: "select" })}>← Back</button>
+        <button onClick={() => setPhase({ tag: "select", scenarios: phase.scenarios, loadingClarus: false })}>
+          ← Back
+        </button>
       </div>
     );
   }
@@ -56,14 +84,32 @@ export default function App() {
   return (
     <div className="result">
       <header className="result-header">
-        <button className="back-btn" onClick={() => setPhase({ tag: "select" })}>
+        <button
+          className="back-btn"
+          onClick={() => setPhase({ tag: "select", scenarios: phase.scenarios, loadingClarus: false })}
+        >
           ← Back
         </button>
         <div className="result-title">
           <span className="scenario-chip">{scenario.id}</span>
           <span>{scenario.vesselName}</span>
           <span className="imo">{scenario.vesselImo}</span>
+          {scenario.behavioralScore !== undefined && (
+            <span className="risk-score" title="clarus behavioural risk score">
+              Risk {Math.round(scenario.behavioralScore)}/100
+            </span>
+          )}
         </div>
+        {scenario.clarusUrl && (
+          <a
+            className="clarus-link"
+            href={scenario.clarusUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View risk profile in clarus →
+          </a>
+        )}
         {result.filled.review_required && (
           <div className="review-banner">
             ⚠ review_required — one or more fields need human confirmation before submission
