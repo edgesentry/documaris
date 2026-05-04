@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/components/alertlist.tsx","./src/components/auditpanel.tsx","./src/components/voyageselector.tsx","./src/lib/fixtures.ts","./src/lib/pipeline.ts","./src/wasm-pkg/edgesentry_wasm.d.ts","./src/wasm-pkg/edgesentry_wasm_bg.wasm.d.ts"],"version":"5.9.3"}
