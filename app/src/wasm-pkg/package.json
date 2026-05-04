@@ -1,0 +1,21 @@
+{
+  "name": "edgesentry-wasm",
+  "type": "module",
+  "description": "WebAssembly bindings — exposes the edgesentry document pipeline to JavaScript/TypeScript",
+  "version": "0.2.0",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edgesentry/edgesentry-rs"
+  },
+  "files": [
+    "edgesentry_wasm_bg.wasm",
+    "edgesentry_wasm.js",
+    "edgesentry_wasm.d.ts"
+  ],
+  "main": "edgesentry_wasm.js",
+  "types": "edgesentry_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
