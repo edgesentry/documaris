@@ -20,20 +20,31 @@ export default function App() {
     loadingClarus: true,
   });
 
-  // Load live vessel data from clarus in the background; fall back to static fixtures
+  // Load live vessel data from clarus; auto-select if ?mmsi= param is present.
   useEffect(() => {
+    const paramMmsi = new URLSearchParams(location.search).get("mmsi");
+
+    async function autoSelect(scenario: Scenario, scenarios: Scenario[]) {
+      setPhase({ tag: "generating", scenario, scenarios });
+      try {
+        const result = await runPipeline(scenario.csv);
+        setPhase({ tag: "result", scenario, scenarios, result });
+      } catch (e) {
+        setPhase({ tag: "error", message: String(e), scenarios });
+      }
+    }
+
     loadClarusScenarios()
       .then((live) => {
-        setPhase((p) =>
-          p.tag === "select"
-            ? { ...p, scenarios: live, loadingClarus: false }
-            : p
-        );
+        const target = paramMmsi ? live.find((s) => String(s.mmsi) === paramMmsi) : null;
+        if (target) {
+          autoSelect(target, live);
+        } else {
+          setPhase((p) => p.tag === "select" ? { ...p, scenarios: live, loadingClarus: false } : p);
+        }
       })
       .catch(() => {
-        setPhase((p) =>
-          p.tag === "select" ? { ...p, loadingClarus: false } : p
-        );
+        setPhase((p) => p.tag === "select" ? { ...p, loadingClarus: false } : p);
       });
   }, []);
 
@@ -103,7 +114,7 @@ export default function App() {
         {scenario.clarusUrl && (
           <a
             className="clarus-link"
-            href={scenario.clarusUrl}
+            href={scenario.mmsi ? `${scenario.clarusUrl}?mmsi=${scenario.mmsi}` : scenario.clarusUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
