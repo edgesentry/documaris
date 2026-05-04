@@ -65,21 +65,18 @@ let db: duckdb.AsyncDuckDB | null = null;
 
 async function getDb(): Promise<duckdb.AsyncDuckDB> {
   if (db) return db;
-  const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
-    mvp: {
-      mainModule: new URL("@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm", import.meta.url).href,
-      mainWorker: new URL("@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js", import.meta.url).href,
-    },
-    eh: {
-      mainModule: new URL("@duckdb/duckdb-wasm/dist/duckdb-eh.wasm", import.meta.url).href,
-      mainWorker: new URL("@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js", import.meta.url).href,
-    },
-  };
-  const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
-  const worker = new Worker(bundle.mainWorker!);
+  // Use jsDelivr CDN bundles so the large WASM files (~35-41 MiB each) are
+  // not included in the Cloudflare Pages deploy (25 MiB per-file limit).
+  const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
+  // Worker must be loaded via blob URL to satisfy same-origin worker policy.
+  const workerUrl = URL.createObjectURL(
+    new Blob([`importScripts("${bundle.mainWorker!}");`], { type: "text/javascript" }),
+  );
+  const worker = new Worker(workerUrl);
   const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.ERROR);
   db = new duckdb.AsyncDuckDB(logger, worker);
   await db.instantiate(bundle.mainModule);
+  URL.revokeObjectURL(workerUrl);
   return db;
 }
 
