@@ -14,6 +14,9 @@ export default defineConfig({
   build: {
     target: "es2020",
   },
+  optimizeDeps: {
+    exclude: ["@duckdb/duckdb-wasm"],
+  },
   test: {
     globals: true,
     environment: "jsdom",

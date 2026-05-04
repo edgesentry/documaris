@@ -7,6 +7,11 @@ export interface Scenario {
   expectReviewRequired: boolean;
   expectedAlerts: number;
   csv: string;
+  // clarus fields — present when loaded from live data
+  mmsi?: number;
+  behavioralScore?: number;
+  aisGaps?: number;
+  clarusUrl?: string;
 }
 
 const HEADER =
