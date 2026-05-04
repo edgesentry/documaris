@@ -38,11 +38,6 @@ export function VoyageSelector({ onSelect }: Props) {
           </button>
         ))}
       </div>
-      <p className="footnote">
-        Pipeline runs entirely in your browser via WebAssembly —
-        the same Rust code that powers the <code>eds</code> CLI.
-        No server. No install.
-      </p>
     </div>
   );
 }
