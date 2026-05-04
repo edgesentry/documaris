@@ -55,9 +55,11 @@ const DEMO_PRIVATE_KEY =
 
 let wasmReady = false;
 
-export async function initPipeline(): Promise<void> {
+export async function initPipeline(
+  wasmInput?: Parameters<typeof init>[0]
+): Promise<void> {
   if (wasmReady) return;
-  await init();
+  await init(wasmInput);
   wasmReady = true;
 }
 
