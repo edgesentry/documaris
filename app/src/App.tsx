@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { VoyageSelector } from "./components/VoyageSelector.js";
 import { AlertList } from "./components/AlertList.js";
 import { AuditPanel } from "./components/AuditPanel.js";
+import { FieldAnalysis } from "./components/FieldAnalysis.js";
 import { runPipeline, type PipelineResult } from "./lib/pipeline.js";
 import type { Scenario } from "./lib/fixtures.js";
 
@@ -89,6 +90,11 @@ export default function App() {
 
         <div className="result-right">
           <section className="section">
+            <h2>AI field analysis</h2>
+            <FieldAnalysis filled={result.filled} />
+          </section>
+
+          <section className="section" style={{ marginTop: 24 }}>
             <h2>FAL Form 1 — General Declaration</h2>
             <div
               className="fal-form"

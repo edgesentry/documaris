@@ -152,6 +152,42 @@ body {
 .hash { font-size: 11px; letter-spacing: 0.5px; }
 .audit-note { font-size: 11px; color: var(--muted); margin-top: 12px; line-height: 1.5; }
 
+/* ── Field Analysis ── */
+.field-analysis { display: flex; flex-direction: column; gap: 12px; }
+
+.fa-summary { display: flex; gap: 16px; flex-wrap: wrap; }
+.fa-stat { font-size: 12px; color: var(--muted); }
+.fa-stat.ai { color: var(--accent); }
+.fa-stat.flagged { color: var(--warn); }
+.fa-num { font-weight: 700; font-size: 18px; margin-right: 4px; }
+
+.fa-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.fa-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 8px 8px; border-bottom: 1px solid var(--border); }
+.fa-table td { padding: 5px 8px; border-bottom: 1px solid #1e2333; vertical-align: middle; }
+.fa-table tr:last-child td { border-bottom: none; }
+
+.row-ai { background: rgba(74, 158, 255, 0.04); }
+.row-flagged { background: rgba(245, 158, 11, 0.06); }
+
+.field-name { font-family: monospace; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.field-value { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.null-value { color: var(--muted); font-style: italic; }
+
+.source-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.source-ai { background: rgba(74, 158, 255, 0.15); color: var(--accent); }
+.source-direct { background: var(--border); color: var(--muted); }
+.source-derived { background: rgba(34, 197, 94, 0.1); color: var(--ok); }
+
+.conf-bar-wrap { display: flex; align-items: center; gap: 6px; min-width: 80px; }
+.conf-bar { height: 4px; border-radius: 2px; transition: width 0.3s; }
+.conf-high { background: var(--ok); }
+.conf-mid { background: var(--warn); }
+.conf-low { background: var(--high); }
+.conf-label { font-size: 10px; color: var(--muted); }
+.conf-na { color: var(--border); font-size: 11px; }
+
+.flag-badge { font-size: 10px; font-weight: 600; color: var(--warn); background: rgba(245,158,11,0.12); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+
 /* ── FAL Form ── */
 .fal-form {
   background: white;
