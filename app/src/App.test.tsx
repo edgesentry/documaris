@@ -6,6 +6,7 @@ import type { PipelineResult } from "./lib/pipeline.js";
 
 vi.mock("./lib/clarusData.js", () => ({
   loadClarusScenarios: vi.fn(),
+  loadClarusScenarioByMmsi: vi.fn(),
   CLARUS_URL: "https://clarus-d5d.pages.dev",
 }));
 
@@ -14,7 +15,7 @@ vi.mock("./lib/pipeline.js", () => ({
   runPipeline: vi.fn(),
 }));
 
-import { loadClarusScenarios } from "./lib/clarusData.js";
+import { loadClarusScenarios, loadClarusScenarioByMmsi } from "./lib/clarusData.js";
 import { runPipeline } from "./lib/pipeline.js";
 
 const LIVE_SCENARIOS: Scenario[] = [
@@ -39,9 +40,18 @@ const MOCK_RESULT: PipelineResult = {
   durationMs: 50,
 };
 
+const FORTUNE_STAR: Scenario = {
+  ...SCENARIOS[1],
+  mmsi: 563012345,
+  behavioralScore: 72,
+  aisGaps: 12,
+  clarusUrl: "https://clarus-d5d.pages.dev",
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(loadClarusScenarios).mockResolvedValue(LIVE_SCENARIOS);
+  vi.mocked(loadClarusScenarioByMmsi).mockResolvedValue(null);
   vi.mocked(runPipeline).mockResolvedValue(MOCK_RESULT);
   window.history.replaceState({}, "", "/");
 });
@@ -92,7 +102,21 @@ describe("App — ?mmsi= deep-link", () => {
     expect(screen.queryByRole("heading", { name: "documaris" })).not.toBeInTheDocument();
   });
 
-  it("shows the selector normally when mmsi is not found", async () => {
+  it("queries Parquet directly when mmsi is not in the top-3 selector scenarios", async () => {
+    // MV Fortune Star (563012345) is not in LIVE_SCENARIOS — direct lookup fires
+    vi.mocked(loadClarusScenarioByMmsi).mockResolvedValue(FORTUNE_STAR);
+    window.history.replaceState({}, "", "/?mmsi=563012345");
+    render(<App />);
+    await waitFor(() => {
+      expect(vi.mocked(loadClarusScenarioByMmsi)).toHaveBeenCalledWith("563012345");
+    });
+    await waitFor(() => {
+      expect(vi.mocked(runPipeline)).toHaveBeenCalledWith(FORTUNE_STAR.csv);
+    });
+  });
+
+  it("shows the selector when mmsi is not found in Parquet either", async () => {
+    vi.mocked(loadClarusScenarioByMmsi).mockResolvedValue(null);
     window.history.replaceState({}, "", "/?mmsi=000000000");
     render(<App />);
     await waitFor(() => {

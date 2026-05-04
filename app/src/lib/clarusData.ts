@@ -80,50 +80,78 @@ async function getDb(): Promise<duckdb.AsyncDuckDB> {
   return db;
 }
 
+// ── shared: register parquet and fetch a row ──────────────────────────────────
+
+async function getConn(): Promise<{ conn: duckdb.AsyncDuckDBConnection; close: () => Promise<void> }> {
+  const db = await getDb();
+  await db.registerFileURL("vessels.parquet", CLARUS_PARQUET_URL, duckdb.DuckDBDataProtocol.HTTP, false);
+  const conn = await db.connect();
+  return { conn, close: () => conn.close() };
+}
+
+function rowToVesselRow(r: Record<string, unknown>): VesselRow {
+  return {
+    mmsi:                Number(r.mmsi),
+    vessel_name:         String(r.vessel_name),
+    flag_state:          String(r.flag_state),
+    vessel_type:         String(r.vessel_type),
+    behavioral_score:    Number(r.behavioral_score),
+    ais_gap_count_30d:   Number(r.ais_gap_count_30d),
+    ais_gap_max_hours:   Number(r.ais_gap_max_hours),
+    sts_candidate_count: Number(r.sts_candidate_count),
+  };
+}
+
+// ── load a single vessel by MMSI for deep-link ────────────────────────────────
+
+export async function loadClarusScenarioByMmsi(mmsi: string): Promise<Scenario | null> {
+  const { conn, close } = await getConn();
+  try {
+    const result = await conn.query(`
+      SELECT mmsi, vessel_name, flag_state, vessel_type,
+             behavioral_score, ais_gap_count_30d, ais_gap_max_hours, sts_candidate_count
+      FROM parquet_scan('vessels.parquet')
+      WHERE mmsi = '${mmsi}' AND vessel_name IS NOT NULL
+      LIMIT 1
+    `);
+    const rows = result.toArray();
+    if (rows.length === 0) return null;
+    const v = rowToVesselRow(rows[0] as Record<string, unknown>);
+    const desc = v.behavioral_score > 60
+      ? `High-risk vessel — ${v.ais_gap_count_30d} AIS gaps in 30 days. BWM certificate expired.`
+      : v.behavioral_score > 30
+      ? "Medium-risk vessel — vague cargo description, crew count missing."
+      : "Compliant voyage — all fields valid, 0 alerts expected.";
+    const id = v.behavioral_score > 60 ? "TC2" : v.behavioral_score > 30 ? "TC3" : "TC1";
+    return vesselToScenario(id, v, desc);
+  } finally {
+    await close();
+  }
+}
+
 // ── main export ───────────────────────────────────────────────────────────────
 
 export async function loadClarusScenarios(): Promise<Scenario[]> {
-  const db = await getDb();
-  const conn = await db.connect();
+  const { conn, close } = await getConn();
 
   try {
-    // Register the remote Parquet file
-    await db.registerFileURL(
-      "vessels.parquet",
-      CLARUS_PARQUET_URL,
-      duckdb.DuckDBDataProtocol.HTTP,
-      false,
-    );
-
     const result = await conn.query(`
       WITH ranked AS (
         SELECT *,
           ROW_NUMBER() OVER (ORDER BY behavioral_score DESC)  AS rn_high,
           ROW_NUMBER() OVER (ORDER BY behavioral_score ASC)   AS rn_low,
-          ROW_NUMBER() OVER (
-            ORDER BY ABS(behavioral_score - 40) ASC
-          ) AS rn_mid
+          ROW_NUMBER() OVER (ORDER BY ABS(behavioral_score - 40) ASC) AS rn_mid
         FROM parquet_scan('vessels.parquet')
         WHERE vessel_name IS NOT NULL
       )
       SELECT mmsi, vessel_name, flag_state, vessel_type,
-             behavioral_score, ais_gap_count_30d, ais_gap_max_hours,
-             sts_candidate_count
+             behavioral_score, ais_gap_count_30d, ais_gap_max_hours, sts_candidate_count
       FROM ranked
       WHERE rn_high = 1 OR rn_low = 1 OR rn_mid = 1
       LIMIT 3
     `);
 
-    const rows: VesselRow[] = result.toArray().map((r) => ({
-      mmsi:               Number(r.mmsi),
-      vessel_name:        String(r.vessel_name),
-      flag_state:         String(r.flag_state),
-      vessel_type:        String(r.vessel_type),
-      behavioral_score:   Number(r.behavioral_score),
-      ais_gap_count_30d:  Number(r.ais_gap_count_30d),
-      ais_gap_max_hours:  Number(r.ais_gap_max_hours),
-      sts_candidate_count: Number(r.sts_candidate_count),
-    }));
+    const rows: VesselRow[] = result.toArray().map((r) => rowToVesselRow(r as Record<string, unknown>));
 
     // Sort: highest risk first, then medium, then lowest
     rows.sort((a, b) => b.behavioral_score - a.behavioral_score);
@@ -135,7 +163,7 @@ export async function loadClarusScenarios(): Promise<Scenario[]> {
       vesselToScenario("TC3", mid,  "Medium-risk vessel — vague cargo description, crew count missing."),
     ];
   } finally {
-    await conn.close();
+    await close();
   }
 }
 

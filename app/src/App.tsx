@@ -5,7 +5,7 @@ import { AuditPanel } from "./components/AuditPanel.js";
 import { FieldAnalysis } from "./components/FieldAnalysis.js";
 import { runPipeline, type PipelineResult } from "./lib/pipeline.js";
 import { SCENARIOS, type Scenario } from "./lib/fixtures.js";
-import { loadClarusScenarios } from "./lib/clarusData.js";
+import { loadClarusScenarios, loadClarusScenarioByMmsi } from "./lib/clarusData.js";
 
 type Phase =
   | { tag: "select"; scenarios: Scenario[]; loadingClarus: boolean }
@@ -34,9 +34,15 @@ export default function App() {
       }
     }
 
-    loadClarusScenarios()
-      .then((live) => {
-        const target = paramMmsi ? live.find((s) => String(s.mmsi) === paramMmsi) : null;
+    // Load the 3 selector scenarios in parallel with the MMSI lookup (if any).
+    // If a specific MMSI is requested, query the Parquet for that vessel directly
+    // rather than relying on it being in the pre-selected top-3.
+    const scenariosPromise = loadClarusScenarios();
+    const mmsiPromise = paramMmsi ? loadClarusScenarioByMmsi(paramMmsi) : Promise.resolve(null);
+
+    Promise.all([scenariosPromise, mmsiPromise])
+      .then(([live, byMmsi]) => {
+        const target = byMmsi ?? (paramMmsi ? live.find((s) => String(s.mmsi) === paramMmsi) : null);
         if (target) {
           autoSelect(target, live);
         } else {
