@@ -1,10 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import wasm from "vite-plugin-wasm";
-import topLevelAwait from "vite-plugin-top-level-await";
 
 export default defineConfig({
-  plugins: [react(), wasm(), topLevelAwait()],
+  plugins: [react(), wasm()],
   server: {
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
@@ -12,7 +11,7 @@ export default defineConfig({
     },
   },
   build: {
-    target: "es2020",
+    target: "es2022",
   },
   test: {
     globals: true,
