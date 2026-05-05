@@ -16,7 +16,7 @@ npm run build
 wrangler pages deploy dist --project-name documaris
 ```
 
-Live app: **https://documaris.pages.dev**
+Live app: **https://documaris.edgesentry.io/analysis/**
 
 ## R2 bucket
 
