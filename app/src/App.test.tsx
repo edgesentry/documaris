@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import App from "./App.js";
 import { SCENARIOS, type Scenario } from "./lib/fixtures.js";
@@ -135,5 +135,43 @@ describe("App — result header clarus link", () => {
     });
     const link = screen.getByText("View risk profile in clarus →").closest("a")!;
     expect(link.getAttribute("href")).toBe("https://clarus-d5d.pages.dev?mmsi=477123456");
+  });
+});
+
+describe("App — PDF export", () => {
+  let printSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    printSpy.mockRestore();
+  });
+
+  it("renders the Download PDF button on the result panel", async () => {
+    window.history.replaceState({}, "", "/?mmsi=477123456");
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.getByText(/Download PDF/)).toBeInTheDocument();
+    });
+  });
+
+  it("calls window.print() when Download PDF is clicked", async () => {
+    window.history.replaceState({}, "", "/?mmsi=477123456");
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.getByText(/Download PDF/)).toBeInTheDocument();
+    });
+    screen.getByText(/Download PDF/).click();
+    expect(printSpy).toHaveBeenCalledOnce();
+  });
+
+  it("does not show Download PDF button on the selector screen", async () => {
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "documaris" })).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Download PDF/)).not.toBeInTheDocument();
   });
 });

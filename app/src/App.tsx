@@ -127,6 +127,9 @@ export default function App() {
             View risk profile in clarus →
           </a>
         )}
+        <button className="pdf-btn" onClick={() => window.print()}>
+          ⬇ Download PDF
+        </button>
         {result.filled.review_required && (
           <div className="review-banner">
             ⚠ review_required — one or more fields need human confirmation before submission
@@ -157,7 +160,7 @@ export default function App() {
             <FieldAnalysis filled={result.filled} />
           </section>
 
-          <section className="section" style={{ marginTop: 24 }}>
+          <section className="section fal-section" style={{ marginTop: 24 }}>
             <h2>FAL Form 1 — General Declaration</h2>
             <div
               className="fal-form"

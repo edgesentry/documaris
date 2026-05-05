@@ -221,6 +221,50 @@ body {
 .fal-form td, .fal-form th { border: 1px solid #ccc; padding: 6px 10px; }
 .fal-form th { background: #f0f0f0; font-weight: 600; }
 
+/* ── PDF download button ── */
+.pdf-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.pdf-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Print / PDF ── */
+@media print {
+  /* Hide everything except the FAL form */
+  .result-header,
+  .result-left,
+  .section:not(.fal-section) {
+    display: none !important;
+  }
+
+  /* FAL form takes full page width */
+  .result-body {
+    display: block !important;
+  }
+  .result-right {
+    padding: 0;
+  }
+  .fal-section {
+    margin-top: 0 !important;
+  }
+  .fal-form {
+    border: none;
+    padding: 0;
+    font-size: 12px;
+  }
+  body {
+    background: white;
+    color: black;
+  }
+}
+
 /* ── Error ── */
 .error-screen { padding: 48px 24px; max-width: 600px; margin: 0 auto; }
 .error-screen h2 { margin-bottom: 16px; color: var(--high); }
