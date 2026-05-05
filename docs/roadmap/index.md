@@ -39,7 +39,7 @@ TC4: "If a question arises after submission, the agent can trace exactly what ha
 
 **Expected behaviour:** "Generate" button → FAL Form 1 + FAL Form 5 + Singapore package in < 60 seconds. BLAKE3 hash of the final PDF embedded in XMP metadata (`/DocumentHash`).
 
-**Audit log:** `edgesentry-audit` seals the `DocumentAuditPayload` (Class C). Log records `vessel_id` / `voyage_id` (source data references traceable to maridb snapshot), `ai_field_values`, `llm_confidence_flags`, `audit_hash`.
+**Audit log:** `edgesentry-audit` seals the `DocumentAuditPayload` (Class C). Log records `vessel_id` / `voyage_id` (source data references traceable to indago snapshot), `ai_field_values`, `llm_confidence_flags`, `audit_hash`.
 
 ---
 
@@ -116,13 +116,13 @@ TC4: "If a question arises after submission, the agent can trace exactly what ha
 |---|---|---|
 | Native app framework | Tauri (Rust/WebView) · egui · iced | M1 UI wiring |
 | Local AI model | Apache 2.0 / MIT model with JP support + structured JSON output | M1 AI fill |
-| R2 schema contract | Parquet partition layout agreed with maridb | M1 field map + maridb#49 copy job |
+| R2 schema contract | Parquet partition layout agreed with indago | M1 field map + indago#49 copy job |
 
 **Deliverables:**
 - `mock/vessel_V001.json` — single vessel + voyage + cargo record matching agreed schema
-- `field_maps/fal_form_1_field_map.json` — every FAL Form 1 field mapped to maridb source, fill type, AI-fill flag
+- `field_maps/fal_form_1_field_map.json` — every FAL Form 1 field mapped to indago source, fill type, AI-fill flag
 - Native app skeleton: window opens, loads mock data, no crash
-- Crew PII exclusion from documaris R2 bucket confirmed in maridb pipeline spec
+- Crew PII exclusion from documaris R2 bucket confirmed in indago pipeline spec
 
 ---
 
@@ -180,7 +180,7 @@ TC4: "If a question arises after submission, the agent can trace exactly what ha
 
 **Deliverables:**
 
-- `singapore_port_entry_field_map.json` — MPA Port+ aligned fields mapped to maridb schema
+- `singapore_port_entry_field_map.json` — MPA Port+ aligned fields mapped to indago schema
 - Regulatory KB seed — at least 5 real Port of Singapore rules (BWM D-2, quarantine pre-notification window, DG restrictions, crew document minimum validity periods)
 - Regulatory Alert implementation: AI conflict-check at generation time; HIGH/MEDIUM/LOW severity; HIGH blocks export; alert detail surfaced in PDF cover sheet; MEDIUM override requires reason code (audit-logged)
 - Demo vessel: deliberately non-compliant record with expired BWM certificate
@@ -225,7 +225,7 @@ The demo already runs. M5 is recording and narrative — no new code.
 **Deliverables:**
 - 2-minute screen recording (above structure)
 - PIER71 application form text (from `pier71-business-brief.md` submission-ready section)
-- Slide deck aligned to 15-slide structure in `pier71-evaluation-mapping.md`
+- Slide deck aligned to 15-slide structure in `ref-pier71-evaluation.md`
 
 ---
 
@@ -235,7 +235,7 @@ The demo already runs. M5 is recording and narrative — no new code.
 |---|---|---|
 | **1 — PIER71 MVP** | TC1–TC4 demo; Singapore pilot | FAL 1 + FAL 5 + Singapore package; local audit log |
 | **2 — Pilot-ready** | First paying Singapore agent/operator | AIS Voyage Evidence; TC5 offline mode; remote R2 audit bucket sync; Japan package; unstructured ingestion (email/messaging secondary path); TradeTrust Phase 2; Phase 2 test cases (see below) |
-| **3 — Commercial** | Japan expansion + PIER71-02 PoC | edgesentry-audit extended to shipboard OT; Hanko-Confidence Score (OCR); maridb expanded with engine/sensor logs; immugate commercial audit service |
+| **3 — Commercial** | Japan expansion + PIER71-02 PoC | edgesentry-audit extended to shipboard OT; Hanko-Confidence Score (OCR); indago expanded with engine/sensor logs; immugate commercial audit service |
 | **4 — Platform** | Full trust platform | edgesentry + arktrace + documaris unified; PIER71-12 sensor data verification |
 
 ---
@@ -310,15 +310,15 @@ Raw input bytes (image / email / chat)
 
 ## Open questions
 
-1. **R2 schema contract** — partition layout must be agreed with maridb before M0 closes; maridb copy job (maridb#49) depends on this
-2. **Crew PII exclusion from R2** — explicit maridb pipeline rule needed; if any PII lands in Parquet files the local-processing boundary breaks
+1. **R2 schema contract** — partition layout must be agreed with indago before M0 closes; indago copy job (indago#49) depends on this
+2. **Crew PII exclusion from R2** — explicit indago pipeline rule needed; if any PII lands in Parquet files the local-processing boundary breaks
 3. **Native app framework** — Tauri vs. egui vs. iced; decision needed Day 1 of W1
 4. **AI model selection** — Apache 2.0 / MIT; Japanese support; structured JSON output; size budget for installer; decision needed before M1 AI fill is wired
 5. **Model distribution** — bundled vs. downloaded on first run; size budget for macOS .dmg
-6. **Audit log location (open Q removed)** — no longer maridb; local append-only file in native app (always), R2 audit bucket (Phase 2)
+6. **Audit log location (open Q removed)** — no longer indago; local append-only file in native app (always), R2 audit bucket (Phase 2)
 7. **Regulatory KB update ownership** — manual review gate needed for port-notice scraping; who owns this operationally?
 8. **Japan OCR / Hanko (Phase 2)** — deferred; local vision-capable model required; validate on Hakata Port samples before Phase 2 build
 
 ---
 
-*See also: [`background.md`](background.md) · [`architecture.md`](architecture.md)*
+*See also: [`ref-background.md`](../ref-background.md) · [`ref-architecture.md`](../ref-architecture.md)*

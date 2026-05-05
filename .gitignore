@@ -6,3 +6,5 @@ __pycache__
 .DS_Store
 app/tsconfig.tsbuildinfo
 app/dist/
+site/
+uv.lock

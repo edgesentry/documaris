@@ -10,7 +10,7 @@ Built for the [PIER71 Smart Port Challenge 2026](https://pier71.sg) — Innovati
 
 ## What it does
 
-1. **Pulls vessel, voyage, and cargo data** from [maridb](../maridb)'s data lake (Cloudflare R2)
+1. **Pulls vessel, voyage, and cargo data** from [indago](https://github.com/edgesentry/indago)'s data lake (Cloudflare R2)
 2. **Fills port call forms** using field maps and an LLM — free-text fields, translations, and inferred values handled automatically
 3. **Checks for regulatory conflicts** against a per-port knowledge base before generating the PDF — expired certificates, missed pre-notification windows, and DG restrictions surface as HIGH/MEDIUM/LOW alerts
 4. **Renders PDFs** server-side for non-PII forms; entirely in-browser via WASM for crew data (FAL Form 5) — crew PII never transits the server
@@ -32,9 +32,9 @@ Built for the [PIER71 Smart Port Challenge 2026](https://pier71.sg) — Innovati
 ## Product stack
 
 ```
-maridb        data ingestion + transformation → Cloudflare R2
-arktrace      shadow fleet analysis + AIS watchlist (reads from maridb)
-documaris     port call document generation (reads from maridb)
+indago        data ingestion + transformation → Cloudflare R2
+arktrace      shadow fleet analysis + AIS watchlist (reads from indago)
+documaris     port call document generation (reads from indago)
 edgesentry    physical inspection layer (enters Phase 3)
 ```
 
@@ -44,10 +44,10 @@ edgesentry    physical inspection layer (enters Phase 3)
 
 | Document | Contents |
 |---|---|
-| [docs/background.md](docs/background.md) | What documaris is, the problem it solves, business model, and competitive differentiators |
-| [docs/architecture.md](docs/architecture.md) | Six-layer pipeline design, Trust Layer, Regulatory Alert, WASM offline render, Compliance and Operations Policy |
-| [docs/roadmap.md](docs/roadmap.md) | Sprint milestones (M0–M5) to PIER71 submission, PoC KPI targets, phase roadmap beyond PIER71 |
-| [docs/pier71-evaluation-mapping.md](docs/pier71-evaluation-mapping.md) | Maps all 10 PIER71 deck evaluation criteria to specific doc sections |
+| [docs/ref-background.md](docs/ref-background.md) | What documaris is, the problem it solves, business model, and competitive differentiators |
+| [docs/ref-architecture.md](docs/ref-architecture.md) | Six-layer pipeline design, Trust Layer, Regulatory Alert, WASM offline render, Compliance and Operations Policy |
+| [docs/roadmap/index.md](docs/roadmap/index.md) | Sprint milestones (M0–M5) to PIER71 submission, PoC KPI targets, phase roadmap beyond PIER71 |
+| [docs/ref-pier71-evaluation.md](docs/ref-pier71-evaluation.md) | Maps all 10 PIER71 deck evaluation criteria to specific doc sections |
 
 ---
 
@@ -60,7 +60,7 @@ clarus (vessel risk intelligence)          documaris (port call documentation)
 ─────────────────────────────────          ───────────────────────────────────
 AIS gaps · STS transfers                   FAL Form 1 · BWM certificate check
 Behavioural risk score                     Compliance alerts · Audit record
-https://clarus-d5d.pages.dev               https://documaris.pages.dev
+https://clarus.edgesentry.io/analysis/               https://documaris.edgesentry.io/analysis/
          │                                          │
          └──────────── same vessel (MMSI) ──────────┘
 ```
@@ -71,8 +71,8 @@ Both products accept a `?mmsi=<mmsi>` URL parameter that auto-selects a vessel:
 
 | URL | Behaviour |
 |-----|-----------|
-| `https://documaris.pages.dev?mmsi=563012345` | Fetches vessel from clarus Parquet, runs FAL Form 1 pipeline immediately — selector screen skipped |
-| `https://clarus-d5d.pages.dev?mmsi=563012345` | Auto-selects the vessel in the risk scorecard sidebar |
+| `https://documaris.edgesentry.io/analysis/?mmsi=563012345` | Fetches vessel from clarus Parquet, runs FAL Form 1 pipeline immediately — selector screen skipped |
+| `https://clarus.edgesentry.io/analysis/?mmsi=563012345` | Auto-selects the vessel in the risk scorecard sidebar |
 
 On the documaris result panel, **"View risk profile in clarus →"** links back to the same vessel's scorecard (with `?mmsi=` appended). On the clarus scorecard, **"View port call documents in documaris →"** links forward to the FAL Form 1.
 
@@ -82,6 +82,6 @@ See [`edgesentry-commercial/docs/strategy/platform-story.md`](https://github.com
 
 ## Status
 
-Live demo: **[documaris.pages.dev](https://documaris.pages.dev)**
+Live demo: **[documaris.edgesentry.io](https://documaris.edgesentry.io/analysis/)**
 
 **PIER71 application deadline: 15 June 2026**

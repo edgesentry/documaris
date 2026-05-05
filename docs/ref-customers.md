@@ -91,7 +91,7 @@ The 4 product tiers (Open 1, Open 2, Commercial Singapore, Commercial Japan) map
 | 0 | FAL Form 1 + FAL Form 5 generated from a single vessel record | Open 1 + Open 2 (MIT, free) | 7 (Business model — funnel) | Yes — M1 core deliverable |
 | 1 | Singapore port entry package (MPA + ICA + TradeNet) from single data entry | Commercial Singapore | 1 (Urgency), 5 (Validation), 9 (Domain) | Yes — field map + mock data |
 | 2 | Regulatory Alert: HIGH on expired BWM cert blocks submission | Commercial Singapore | 1 (Urgency), 3 (Competitive advantage), 9 (Domain) | Yes — seed KB with real MPA circular |
-| 3 | AIS Voyage Evidence appended to port call package (arktrace connection) | Commercial Singapore | 8 (IP/Defensibility), 9 (Domain), 10 (IO-11) | Yes — maridb AIS data → signed summary |
+| 3 | AIS Voyage Evidence appended to port call package (arktrace connection) | Commercial Singapore | 8 (IP/Defensibility), 9 (Domain), 10 (IO-11) | Yes — indago AIS data → signed summary |
 | 4 | Cryptographic verify endpoint: `GET /audit/verify?hash=` returns voyage record | Commercial Singapore | 2 (Market), 8 (IP), 10 (IO-02) | Yes — Trust Layer M2 deliverable |
 | 5 | Offline FAL Form 5 generation (PWA, no server) | Open 2 (offline path) | 3 (Competitive advantage), 6 (Scalability) | M1 Should / M2 stretch |
 | 6 | Fleet compliance dashboard (multi-vessel Regulatory Alert view) | Commercial Singapore (scale) | 6 (Scalability), 7 (Business model) | Phase 2 — not M0–M5 |
@@ -115,5 +115,5 @@ The 4 product tiers (Open 1, Open 2, Commercial Singapore, Commercial Japan) map
 
 1. **Who is the economic buyer vs. the daily user?** Operations manager approves subscription; documentation clerk uses the tool. Sales motion targets the manager; onboarding targets the clerk.
 2. **Does MPA's Port+ system expose an API for documaris to submit directly?** If yes, documaris becomes a generation + submission tool, not just a generation tool — significantly raising value and switching cost.
-3. **Who owns Regulatory KB updates?** Port regulations change. The Regulatory Alert is only as good as the knowledge base. Ownership of ongoing KB maintenance is unresolved — see `roadmap.md` open question #6.
+3. **Who owns Regulatory KB updates?** Port regulations change. The Regulatory Alert is only as good as the knowledge base. Ownership of ongoing KB maintenance is unresolved — see `roadmap/index.md` open question #6.
 4. **Can arktrace watchlist data feed a "document risk flag" in documaris?** If a vessel is on the arktrace high-risk watchlist, documaris could surface a warning at document generation time — before MPA sees the submission. This closes the arktrace → documaris loop and creates a uniquely defensible integration.

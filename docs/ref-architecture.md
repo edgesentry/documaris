@@ -3,7 +3,7 @@
 - **Date:** 2026-04-26 (updated from 2026-04-24)
 - **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
 - **Delivery:** Native desktop app (macOS / Windows / Linux); local open-source AI model (Apache 2.0 / MIT, model TBD)
-- **Key invariants:** vessel/voyage/cargo data pulled from documaris R2 bucket (maridb copies into it); crew PII supplied by user locally; only BLAKE3 hash transits the network
+- **Key invariants:** vessel/voyage/cargo data pulled from documaris R2 bucket (indago copies into it); crew PII supplied by user locally; only BLAKE3 hash transits the network
 
 ---
 
@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart TD
-    maridb["<b>REMOTE: maridb</b>\nvessel · voyage · cargo · events"]
+    indago["<b>REMOTE: indago</b>\nvessel · voyage · cargo · events"]
     r2["<b>REMOTE: documaris R2 bucket</b>\nread-only for app\nvessels / voyages / cargo / events (Parquet)"]
     cache["Local cache\n(R2 snapshot)"]
     crew["User-provided crew JSON\n⚠ PII — never leaves app"]
@@ -20,7 +20,7 @@ flowchart TD
     local_log["<b>Local audit log</b>\nappend-only · tamper-evident\nagent's own record · always available"]
     remote_store["<b>REMOTE: tamper-proof audit store</b>\nappend-only\nappend-only R2 bucket (MVP) → immugate (future)\nqueryable by authorities & P&I Clubs"]
 
-    maridb -->|"push — maridb copy job"| r2
+    indago -->|"push — indago copy job"| r2
     r2 -->|"download on first run / refresh"| cache
     cache --> pipeline
     crew --> pipeline
@@ -33,18 +33,18 @@ flowchart TD
 
 ## Layer 1 — Data Fetch
 
-documaris reads exclusively from its own Cloudflare R2 bucket. maridb is responsible for copying the data documaris needs into this bucket. This keeps the dependency clean: maridb serves multiple applications (arktrace, documaris, and future products) and adding direct cross-app R2 bucket access would create tight coupling between consumers.
+documaris reads exclusively from its own Cloudflare R2 bucket. indago is responsible for copying the data documaris needs into this bucket. This keeps the dependency clean: indago serves multiple applications (arktrace, documaris, and future products) and adding direct cross-app R2 bucket access would create tight coupling between consumers.
 
 **Responsibility split:**
 
 | Responsibility | Owner |
 |---|---|
-| Ingesting raw vessel, voyage, cargo, and AIS data | maridb |
-| Transforming and writing data to the documaris R2 bucket | maridb (copy job) |
+| Ingesting raw vessel, voyage, cargo, and AIS data | indago |
+| Transforming and writing data to the documaris R2 bucket | indago (copy job) |
 | Reading from the documaris R2 bucket | documaris app only |
 | Schema of the documaris R2 bucket | Agreed jointly at M0; owned by documaris |
 
-**documaris R2 layout (target schema — copy job implemented by maridb):**
+**documaris R2 layout (target schema — copy job implemented by indago):**
 ```
 s3://documaris-bucket/
   vessels/vessel_id=IMO1234567/data.parquet   ← name, flag, IMO, GT, LOA, certificates
@@ -53,7 +53,7 @@ s3://documaris-bucket/
   events/vessel_id=IMO1234567/2026-04-24.json ← AIS position fixes, port entry/exit
 ```
 
-> **Schema contract (M0):** the documaris R2 partition layout is the interface contract between maridb and documaris. It must be agreed before Milestone 0 completes. maridb's existing R2 output (AIS and vessel scoring data for arktrace) uses a different schema; the copy job for documaris is a separate pipeline that maridb must implement without modifying its existing outputs.
+> **Schema contract (M0):** the documaris R2 partition layout is the interface contract between indago and documaris. It must be agreed before Milestone 0 completes. indago's existing R2 output (AIS and vessel scoring data for arktrace) uses a different schema; the copy job for documaris is a separate pipeline that indago must implement without modifying its existing outputs.
 
 DuckDB runs in-process (Rust `duckdb` crate, `bundled` feature) to JOIN across Parquet files with a single SQL query and output a flat JSON record. The `object_store` crate (`aws` feature) handles S3-compatible download from the documaris R2 bucket; swapping to a local file system for development requires no code change.
 
@@ -70,12 +70,12 @@ tokio        = { version = "1", features = ["full"] }
 
 ## Layer 2 — Field Mapping
 
-Each document type has a `field_map.json` that maps every form field to its maridb source and specifies how it should be filled:
+Each document type has a `field_map.json` that maps every form field to its indago source and specifies how it should be filled:
 
 ```json
 {
   "form_field": "brief_cargo_description",
-  "source": "maridb.cargo.manifest_summary",
+  "source": "indago.cargo.manifest_summary",
   "type": "llm_summarise",
   "llm_required": true,
   "llm_prompt": "Summarise the cargo manifest in one line suitable for IMO FAL Form 1 field 13."
@@ -84,7 +84,7 @@ Each document type has a `field_map.json` that maps every form field to its mari
 
 Field types: `direct` (copy as-is) · `llm_summarise` · `llm_translate` · `llm_infer` · `computed`.
 
-This schema is the formal contract between maridb's data layout and documaris's form templates. It must be agreed before Milestone 0 begins. Field source paths use the `maridb.*` namespace (e.g. `maridb.cargo.manifest_summary`).
+This schema is the formal contract between indago's data layout and documaris's form templates. It must be agreed before Milestone 0 begins. Field source paths use the `indago.*` namespace (e.g. `indago.cargo.manifest_summary`).
 
 ---
 
@@ -186,7 +186,7 @@ fn queue_and_sync(record: AuditRecord, payload_bytes: Vec<u8>, endpoint: &Url);
 
 **Verification:** `GET /audit/verify?hash=<blake3_hex>` → `{ "verified": true, chain_intact: true, … }` — served by the remote audit store, independent of documaris.
 
-documaris also auto-generates an **AIS Voyage Evidence Summary** companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from maridb's AIS event Parquet data via the AI fill layer. The summary is treated as a payload and sealed by edgesentry-audit identically to any other document — the library does not distinguish it from a FAL form. This turns a form generator into a verifiable audit instrument: false declarations become detectable.
+documaris also auto-generates an **AIS Voyage Evidence Summary** companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from indago's AIS event Parquet data via the AI fill layer. The summary is treated as a payload and sealed by edgesentry-audit identically to any other document — the library does not distinguish it from a FAL form. This turns a form generator into a verifiable audit instrument: false declarations become detectable.
 
 **TrustSG / IMDA alignment:** the Trust Layer directly addresses two TrustSG pillars — Authenticity (Ed25519 signature proves the document originated from verified vessel data) and Integrity (BLAKE3 hash + append-only audit log proves no post-generation modification). This positions documaris as national-grade trust infrastructure for maritime document exchange, not a convenience tool.
 
@@ -286,21 +286,21 @@ The **Hanko-Confidence Score** (0.0–1.0) detects the presence, clarity, and te
 | Class | Contents | Examples | Server storage | Retention |
 |---|---|---|---|---|
 | **Class A — PII** | Personal data directly identifying an individual | Crew name, passport number, date of birth, nationality | None — local processing only | 0 days — not stored by design |
-| **Class B — Sensitive** | Vessel compliance status and risk-relevant flags | Certificate validity, incident flags, DG declarations | Cloudflare R2 (maridb-controlled, access-logged) | Per maridb data policy |
-| **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers; AI-generated field values (non-PII) | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes, AI-generated cargo description text, AI confidence scores per field | maridb R2 (read by app) + append-only R2 audit bucket (AuditRecord + DocumentAuditPayload); immugate in future | Audit records: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
+| **Class B — Sensitive** | Vessel compliance status and risk-relevant flags | Certificate validity, incident flags, DG declarations | Cloudflare R2 (indago-controlled, access-logged) | Per indago data policy |
+| **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers; AI-generated field values (non-PII) | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes, AI-generated cargo description text, AI confidence scores per field | indago R2 (read by app) + append-only R2 audit bucket (AuditRecord + DocumentAuditPayload); immugate in future | Audit records: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
 
 ### Data flow boundary
 
 ```
 LOCAL (documaris native app):
   ├─ Class A (PII)     — crew data supplied by user; never transmitted
-  ├─ Class B/C         — vessel/voyage/cargo pulled from maridb R2, cached locally
+  ├─ Class B/C         — vessel/voyage/cargo pulled from indago R2, cached locally
   ├─ AI model          — bundled/downloaded; runs fully offline
   ├─ Regulatory KB     — bundled; updated via app update mechanism
   └─ PDF output        — written to local file system only
 
 REMOTE read (documaris R2 bucket, S3-compatible — read-only for app):
-  └─ vessel/voyage/cargo Parquet — copied here by maridb; downloaded on
+  └─ vessel/voyage/cargo Parquet — copied here by indago; downloaded on
      first run and on refresh; no PII ever stored here
 
 REMOTE write (tamper-proof audit store — append-only R2 bucket (MVP) → immugate (future), append-only):
@@ -315,7 +315,7 @@ REMOTE write (tamper-proof audit store — append-only R2 bucket (MVP) → immug
 ### Processing and storage rules
 
 - **Class A** is processed inside the native app only. It is never transmitted to any remote system. No network call contains Class A data — verifiable by code inspection.
-- **Class B / C** is downloaded from maridb R2 and processed locally inside the app. It is not re-uploaded to any documaris server.
+- **Class B / C** is downloaded from indago R2 and processed locally inside the app. It is not re-uploaded to any documaris server.
 - The only remote write is the AuditRecord + DocumentAuditPayload (Class C) to the tamper-proof audit store (append-only R2 bucket, MVP). No document content and no PII is stored remotely.
 
 ### Access control
@@ -348,13 +348,13 @@ All document-generation events and manual field edits are audit-logged with role
 
 ### Audit trail per document
 
-Every generated document records the following in the maridb append-only audit log. No Class A (PII) data is included — crew names, passport numbers, and personal identifiers are never written to the log. All entries are Class C (operational) and support root cause analysis of submission errors and disputes without storing any personal data.
+Every generated document records the following in the indago append-only audit log. No Class A (PII) data is included — crew names, passport numbers, and personal identifiers are never written to the log. All entries are Class C (operational) and support root cause analysis of submission errors and disputes without storing any personal data.
 
 | Field | Value | Root cause use |
 |---|---|---|
 | `generated_by` | User identity | Who ran the generation |
 | `generated_at` | ISO 8601 timestamp | When — cross-reference with port rejection timestamp |
-| `vessel_id` / `voyage_id` | maridb source references | Which data snapshot was used; look up in maridb for the exact values at generation time |
+| `vessel_id` / `voyage_id` | indago source references | Which data snapshot was used; look up in indago for the exact values at generation time |
 | `audit_hash` | BLAKE3 hash of final PDF binary | Was the submitted PDF the same as the generated PDF? Hash mismatch = tampered after generation |
 | `signature` | Ed25519 signature | Is the document authentic — from a valid documaris instance? |
 | `ai_field_values` | AI-generated text per field (Class C only — no PII fields included) | What exactly did the AI write? Cross-check against source data to identify AI summarisation errors |
@@ -362,7 +362,7 @@ Every generated document records the following in the maridb append-only audit l
 | `fields_modified` | Field names edited in human review step, before/after values, editor identity | Was the submitted content what the AI generated, or did a reviewer change it? |
 | `regulatory_alerts` | Alerts raised, severity, resolution action, reason code | Were compliance warnings present? Were MEDIUM alerts overridden and why? |
 
-**Root cause analysis scenario:** a port authority rejects FAL Form 1 because the cargo description doesn't match the manifest. The agent queries `GET /audit/verify?hash=<blake3_hex>` and finds: `brief_cargo_description` was AI-generated at confidence 0.73 (below 0.80 → amber flag shown); the reviewer accepted without correction; the AI wrote "containerised electronics" while the maridb source (`voyage_id=V20260424`) recorded "2,400 units mobile phones". Root cause identified without storing any crew PII: AI produced a low-confidence summary and the reviewer did not verify it.
+**Root cause analysis scenario:** a port authority rejects FAL Form 1 because the cargo description doesn't match the manifest. The agent queries `GET /audit/verify?hash=<blake3_hex>` and finds: `brief_cargo_description` was AI-generated at confidence 0.73 (below 0.80 → amber flag shown); the reviewer accepted without correction; the AI wrote "containerised electronics" while the indago source (`voyage_id=V20260424`) recorded "2,400 units mobile phones". Root cause identified without storing any crew PII: AI produced a low-confidence summary and the reviewer did not verify it.
 
 Retrievable via `GET /audit/verify?hash=<blake3_hex>`.
 
@@ -423,9 +423,9 @@ One `Cargo.lock` for the entire repo; all products share dependency versions.
 | Local data cache | App-local directory; vessel/voyage/cargo Parquet snapshots from documaris R2 |
 | Regulatory KB | JSON per port, bundled with app; AI eval at generation time |
 | Audit log sync | edgesentry-audit store-and-forward; queued locally when offline |
-| Data lake | Cloudflare R2 — documaris bucket (maridb copy job writes; documaris app reads) |
+| Data lake | Cloudflare R2 — documaris bucket (indago copy job writes; documaris app reads) |
 
 ---
 
-*See also: [`background.md`](background.md) · [`roadmap.md`](roadmap.md)*
+*See also: [`ref-background.md`](ref-background.md) · [`roadmap/index.md`](roadmap/index.md)*
 *Full technical detail per layer: `_outputs/document-generation-architecture.md`*

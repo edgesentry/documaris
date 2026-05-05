@@ -21,13 +21,33 @@ theme:
   features:
     - navigation.sections
     - navigation.top
+    - navigation.tracking
     - search.highlight
     - content.action.edit
+    - content.code.copy
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - tables
+  - admonition
 
 nav:
   - Home: index.md
-  - Background: background.md
-  - Customers: customers.md
-  - Architecture: architecture.md
-  - Roadmap: roadmap.md
-  - PIER71 Evaluation Mapping: pier71-evaluation-mapping.md
+  - Reference:
+    - Background: ref-background.md
+    - Architecture: ref-architecture.md
+    - Customers: ref-customers.md
+    - PIER71 Evaluation: ref-pier71-evaluation.md
+  - Roadmap:
+    - Overview: roadmap/index.md
+  - Related:
+    - clarus: https://github.com/edgesentry/clarus
+    - arktrace: https://github.com/edgesentry/arktrace
+    - indago: https://github.com/edgesentry/indago
+    - edgesentry-rs: https://github.com/edgesentry/edgesentry-rs
