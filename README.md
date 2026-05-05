@@ -51,9 +51,37 @@ edgesentry    physical inspection layer (enters Phase 3)
 
 ---
 
+## Platform integration
+
+documaris is one of two products in the EdgeSentry platform. Both operate on the **same vessel entity**.
+
+```
+clarus (vessel risk intelligence)          documaris (port call documentation)
+─────────────────────────────────          ───────────────────────────────────
+AIS gaps · STS transfers                   FAL Form 1 · BWM certificate check
+Behavioural risk score                     Compliance alerts · Audit record
+https://clarus-d5d.pages.dev               https://documaris.pages.dev
+         │                                          │
+         └──────────── same vessel (MMSI) ──────────┘
+```
+
+### Cross-link deep-link API
+
+Both products accept a `?mmsi=<mmsi>` URL parameter that auto-selects a vessel:
+
+| URL | Behaviour |
+|-----|-----------|
+| `https://documaris.pages.dev?mmsi=563012345` | Fetches vessel from clarus Parquet, runs FAL Form 1 pipeline immediately — selector screen skipped |
+| `https://clarus-d5d.pages.dev?mmsi=563012345` | Auto-selects the vessel in the risk scorecard sidebar |
+
+On the documaris result panel, **"View risk profile in clarus →"** links back to the same vessel's scorecard (with `?mmsi=` appended). On the clarus scorecard, **"View port call documents in documaris →"** links forward to the FAL Form 1.
+
+See [`edgesentry-commercial/docs/strategy/platform-story.md`](https://github.com/edgesentry/edgesentry-commercial) for the full platform narrative.
+
+---
+
 ## Status
 
-Core design defined. R2 schema contract and PII boundary with maridb pending sign-off.
-Sprint underway — live demo URL goes live at Milestone 0 (Week 1).
+Live demo: **[documaris.pages.dev](https://documaris.pages.dev)**
 
 **PIER71 application deadline: 15 June 2026**
