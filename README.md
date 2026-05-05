@@ -44,10 +44,10 @@ edgesentry    physical inspection layer (enters Phase 3)
 
 | Document | Contents |
 |---|---|
-| [docs/background.md](docs/background.md) | What documaris is, the problem it solves, business model, and competitive differentiators |
-| [docs/architecture.md](docs/architecture.md) | Six-layer pipeline design, Trust Layer, Regulatory Alert, WASM offline render, Compliance and Operations Policy |
-| [docs/roadmap.md](docs/roadmap.md) | Sprint milestones (M0–M5) to PIER71 submission, PoC KPI targets, phase roadmap beyond PIER71 |
-| [docs/pier71-evaluation-mapping.md](docs/pier71-evaluation-mapping.md) | Maps all 10 PIER71 deck evaluation criteria to specific doc sections |
+| [docs/ref-background.md](docs/ref-background.md) | What documaris is, the problem it solves, business model, and competitive differentiators |
+| [docs/ref-architecture.md](docs/ref-architecture.md) | Six-layer pipeline design, Trust Layer, Regulatory Alert, WASM offline render, Compliance and Operations Policy |
+| [docs/roadmap/index.md](docs/roadmap/index.md) | Sprint milestones (M0–M5) to PIER71 submission, PoC KPI targets, phase roadmap beyond PIER71 |
+| [docs/ref-pier71-evaluation.md](docs/ref-pier71-evaluation.md) | Maps all 10 PIER71 deck evaluation criteria to specific doc sections |
 
 ---
 
