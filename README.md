@@ -10,7 +10,7 @@ Built for the [PIER71 Smart Port Challenge 2026](https://pier71.sg) — Innovati
 
 ## What it does
 
-1. **Pulls vessel, voyage, and cargo data** from [maridb](../maridb)'s data lake (Cloudflare R2)
+1. **Pulls vessel, voyage, and cargo data** from [indago](https://github.com/edgesentry/indago)'s data lake (Cloudflare R2)
 2. **Fills port call forms** using field maps and an LLM — free-text fields, translations, and inferred values handled automatically
 3. **Checks for regulatory conflicts** against a per-port knowledge base before generating the PDF — expired certificates, missed pre-notification windows, and DG restrictions surface as HIGH/MEDIUM/LOW alerts
 4. **Renders PDFs** server-side for non-PII forms; entirely in-browser via WASM for crew data (FAL Form 5) — crew PII never transits the server
@@ -32,9 +32,9 @@ Built for the [PIER71 Smart Port Challenge 2026](https://pier71.sg) — Innovati
 ## Product stack
 
 ```
-maridb        data ingestion + transformation → Cloudflare R2
-arktrace      shadow fleet analysis + AIS watchlist (reads from maridb)
-documaris     port call document generation (reads from maridb)
+indago        data ingestion + transformation → Cloudflare R2
+arktrace      shadow fleet analysis + AIS watchlist (reads from indago)
+documaris     port call document generation (reads from indago)
 edgesentry    physical inspection layer (enters Phase 3)
 ```
 

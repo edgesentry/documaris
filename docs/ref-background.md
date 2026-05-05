@@ -8,7 +8,7 @@
 
 ## What documaris is
 
-documaris is a maritime document generation and compliance automation platform. It consumes structured vessel, voyage, and cargo data from maridb's data lake and automatically produces the port call documentation packages that commercial vessels must submit to port authorities worldwide.
+documaris is a maritime document generation and compliance automation platform. It consumes structured vessel, voyage, and cargo data from indago's data lake and automatically produces the port call documentation packages that commercial vessels must submit to port authorities worldwide.
 
 **Tagline:** *"Democratising maritime compliance through an Open Source core."*
 
@@ -30,20 +30,20 @@ documaris is the "paper layer" in a four-product stack:
 
 | Product | Role |
 |---|---|
-| **maridb** | Data layer — vessel/voyage/cargo/AIS ingestion and transformation pipelines; Parquet/JSON data lake on Cloudflare R2. [github.com/edgesentry/maridb](https://github.com/edgesentry/maridb) |
-| **arktrace** | Shadow fleet detection application — causal inference scoring, ownership graph analysis, analyst dashboard. Reads AIS and vessel data from maridb. [github.com/edgesentry/arktrace](https://github.com/edgesentry/arktrace) |
+| **indago** | Data layer — vessel/voyage/cargo/AIS ingestion and transformation pipelines; Parquet/JSON data lake on Cloudflare R2. [github.com/edgesentry/indago](https://github.com/edgesentry/indago) |
+| **arktrace** | Shadow fleet detection application — causal inference scoring, ownership graph analysis, analyst dashboard. Reads AIS and vessel data from indago. [github.com/edgesentry/arktrace](https://github.com/edgesentry/arktrace) |
 | **edgesentry** | Physical layer — robotic inspection, sensor deployment, audit firmware (Rust, `edgesentry-rs`) |
 | **documaris** | Document layer — port call package generation, compliance checking, PDF rendering |
 
-maridb is the shared data foundation — it collects and transforms raw vessel, voyage, cargo, and AIS data into a structured Parquet data lake on Cloudflare R2. documaris reads from maridb's R2 to generate port call documents. arktrace reads the same maridb data as the input to its shadow fleet detection pipeline. In Phase 1 and 2, both operate without hardware; edgesentry enters in Phase 3.
+indago is the shared data foundation — it collects and transforms raw vessel, voyage, cargo, and AIS data into a structured Parquet data lake on Cloudflare R2. documaris reads from indago's R2 to generate port call documents. arktrace reads the same indago data as the input to its shadow fleet detection pipeline. In Phase 1 and 2, both operate without hardware; edgesentry enters in Phase 3.
 
 ```
 Phase 1 & 2:
-  maridb ──→ documaris   (vessel/voyage/cargo/AIS → port call documents)
-  maridb ──→ arktrace    (AIS/vessel data → shadow fleet detection)
+  indago ──→ documaris   (vessel/voyage/cargo/AIS → port call documents)
+  indago ──→ arktrace    (AIS/vessel data → shadow fleet detection)
 
 Phase 3 & 4:
-  edgesentry ──→ maridb ──→ documaris
+  edgesentry ──→ indago ──→ documaris
                        └──→ arktrace
 ```
 

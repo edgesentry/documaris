@@ -20,4 +20,4 @@ Live app: **https://documaris.pages.dev**
 
 ## R2 bucket
 
-The app reads from the `documaris-dev-public` R2 bucket (written by maridb pipelines). Bucket config is in `wrangler.toml`.
+The app reads from the `documaris-dev-public` R2 bucket (written by indago pipelines). Bucket config is in `wrangler.toml`.

@@ -2,15 +2,15 @@
 
 ## Scope
 
-documaris is the **document generation and compliance layer** of the EdgeSentry platform. It reads vessel data from maridb and produces port call documents with regulatory checking and a cryptographic audit trail.
+documaris is the **document generation and compliance layer** of the EdgeSentry platform. It reads vessel data from indago and produces port call documents with regulatory checking and a cryptographic audit trail.
 
-Do not add data ingestion, AIS processing, or shadow fleet detection logic here — those belong in [maridb](https://github.com/edgesentry/maridb) and [arktrace](https://github.com/edgesentry/arktrace) respectively.
+Do not add data ingestion, AIS processing, or shadow fleet detection logic here — those belong in [indago](https://github.com/edgesentry/indago) and [arktrace](https://github.com/edgesentry/arktrace) respectively.
 
 ## Layering
 
 | Layer | Where | What belongs there |
 |-------|-------|-------------------|
-| Data ingestion + AIS | maridb | Vessel/voyage/cargo/AIS pipeline → R2 |
+| Data ingestion + AIS | indago | Vessel/voyage/cargo/AIS pipeline → R2 |
 | Shadow fleet detection | arktrace | Causal inference, watchlist |
 | Document generation | this repo | Field maps, compliance checking, PDF render, audit trail |
 | Physical inspection | edgesentry-rs | Sensor data, physics engine |

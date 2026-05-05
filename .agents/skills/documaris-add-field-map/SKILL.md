@@ -7,7 +7,7 @@ metadata:
   repo: documaris
 ---
 
-Field maps live in `field_maps/`. Each file maps a document form to maridb data sources.
+Field maps live in `field_maps/`. Each file maps a document form to indago data sources.
 
 ## Field map structure
 
@@ -30,8 +30,8 @@ Fill types:
 
 | Type | Meaning |
 |------|---------|
-| `direct` | Copied verbatim from maridb source path |
-| `computed` | Derived from multiple maridb fields |
+| `direct` | Copied verbatim from indago source path |
+| `computed` | Derived from multiple indago fields |
 | `llm_summarise` | LLM condenses a long source value |
 | `llm_translate` | LLM translates to target language |
 | `llm_infer` | LLM infers value from surrounding context |

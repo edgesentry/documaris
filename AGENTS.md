@@ -6,7 +6,7 @@ Maritime document generation and compliance automation platform. documaris produ
 
 | Repo | Role | Relationship |
 |------|------|-------------|
-| [maridb](https://github.com/edgesentry/maridb) | Data layer | Writes vessel/voyage/cargo Parquet to documaris R2 bucket — documaris reads from it |
+| [indago](https://github.com/edgesentry/indago) | Data layer | Writes vessel/voyage/cargo Parquet to documaris R2 bucket — documaris reads from it |
 | [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) | Audit chain | Trust Layer reuses `edgesentry-audit` crate (BLAKE3 + Ed25519) |
 | [arktrace](https://github.com/edgesentry/arktrace) | Shadow fleet detection | Shares the same vessel entity (MMSI); documaris closes the compliance loop |
 | [clarus](https://github.com/edgesentry/clarus) | Vessel risk intelligence | Sister product — `?mmsi=` deep-link cross-navigation |
@@ -20,7 +20,7 @@ Maritime document generation and compliance automation platform. documaris produ
 | `app/src/lib/pipeline.ts` | Core document generation pipeline |
 | `app/src/lib/clarusData.ts` | Fetches vessel data from clarus R2 via DuckDB WASM |
 | `field_maps/` | JSON field map contracts per form type |
-| `schemas/` | JSON Schema for maridb vessel record contract |
+| `schemas/` | JSON Schema for indago vessel record contract |
 | `mock/` | Sample vessel records for local testing |
 | `tests/` | pytest — schema contract + field map validation |
 
@@ -32,14 +32,14 @@ Maritime document generation and compliance automation platform. documaris produ
 | PII boundary | Crew PII (`agent_entry` fields) entered locally, never transits the network — only BLAKE3 hash is sent |
 | Field maps as JSON | Form-to-source contracts are data, not code — new forms added without changing pipeline |
 | Trust Layer | Reuses `edgesentry-audit` (BLAKE3 + Ed25519) — same audit chain format as clarus |
-| maridb R2 dependency | App reads vessel Parquet from R2; maridb must have populated the bucket before demo |
+| indago R2 dependency | App reads vessel Parquet from R2; indago must have populated the bucket before demo |
 
 ## External dependency map
 
 | Symptom | Owner | Where |
 |---------|-------|-------|
-| Empty vessel selector | maridb pipeline not run | [maridb](https://github.com/edgesentry/maridb) |
-| Missing AIS track data | maridb AIS ingest not run | [maridb](https://github.com/edgesentry/maridb) |
+| Empty vessel selector | indago pipeline not run | [indago](https://github.com/edgesentry/indago) |
+| Missing AIS track data | indago AIS ingest not run | [indago](https://github.com/edgesentry/indago) |
 | Audit chain verify fails | edgesentry-audit version mismatch | [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) |
 
 ## Coding conventions
