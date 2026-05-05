@@ -1,0 +1,1947 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Maritime document generation and compliance automation platform.">
+      
+      
+      
+        <link rel="canonical" href="https://edgesentry.github.io/documaris/ref-architecture/">
+      
+      
+        <link rel="prev" href="../ref-background/">
+      
+      
+        <link rel="next" href="../ref-customers/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Architecture - documaris</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#documaris-architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="documaris" class="md-header__button md-logo" aria-label="documaris" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            documaris
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/edgesentry/documaris" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    edgesentry/documaris
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="documaris" class="md-nav__button md-logo" aria-label="documaris" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    documaris
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/edgesentry/documaris" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    edgesentry/documaris
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref-background/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-1-data-fetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1 — Data Fetch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-2-field-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2 — Field Mapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-3-ai-fill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3 — AI Fill
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-4-trust-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 4 — Trust Layer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-5-regulatory-alert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 5 — Regulatory Alert
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-6-render" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 6 — Render
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ocr-reverse-ingestion-phase-2-post-pier71-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCR / Reverse Ingestion (Phase 2 — post-PIER71 roadmap)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compliance-and-operations-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compliance and Operations Policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compliance and Operations Policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data classification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-flow-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data flow boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processing-and-storage-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing and storage rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#access-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Access control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#responsibility-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Responsibility boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#human-in-the-loop-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human-in-the-loop gates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit-trail-per-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit trail per document
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incident-response-minimum-sla" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incident response (minimum SLA)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#regulatory-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regulatory compliance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cargo-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cargo Workspace
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#technology-stack-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Technology stack summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref-customers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref-pier71-evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PIER71 Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Roadmap
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Related
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Related
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/edgesentry/clarus" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clarus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/edgesentry/arktrace" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    arktrace
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/edgesentry/maridb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    maridb
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/edgesentry/edgesentry-rs" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    edgesentry-rs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-1-data-fetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1 — Data Fetch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-2-field-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2 — Field Mapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-3-ai-fill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3 — AI Fill
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-4-trust-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 4 — Trust Layer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-5-regulatory-alert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 5 — Regulatory Alert
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-6-render" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 6 — Render
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ocr-reverse-ingestion-phase-2-post-pier71-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCR / Reverse Ingestion (Phase 2 — post-PIER71 roadmap)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compliance-and-operations-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compliance and Operations Policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compliance and Operations Policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data classification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-flow-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data flow boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processing-and-storage-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing and storage rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#access-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Access control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#responsibility-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Responsibility boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#human-in-the-loop-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human-in-the-loop gates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit-trail-per-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit trail per document
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incident-response-minimum-sla" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incident response (minimum SLA)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#regulatory-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regulatory compliance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cargo-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cargo Workspace
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#technology-stack-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Technology stack summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/edgesentry/documaris/edit/main/docs/ref-architecture.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="documaris-architecture">documaris — Architecture</h1>
+<ul>
+<li><strong>Date:</strong> 2026-04-26 (updated from 2026-04-24)</li>
+<li><strong>Status:</strong> Core design defined; R2 schema contract and PII boundary pending sign-off</li>
+<li><strong>Delivery:</strong> Native desktop app (macOS / Windows / Linux); local open-source AI model (Apache 2.0 / MIT, model TBD)</li>
+<li><strong>Key invariants:</strong> vessel/voyage/cargo data pulled from documaris R2 bucket (maridb copies into it); crew PII supplied by user locally; only BLAKE3 hash transits the network</li>
+</ul>
+<hr />
+<h2 id="system-overview">System overview</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TD
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    maridb[&quot;&lt;b&gt;REMOTE: maridb&lt;/b&gt;\nvessel · voyage · cargo · events&quot;]
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    r2[&quot;&lt;b&gt;REMOTE: documaris R2 bucket&lt;/b&gt;\nread-only for app\nvessels / voyages / cargo / events (Parquet)&quot;]
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    cache[&quot;Local cache\n(R2 snapshot)&quot;]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    crew[&quot;User-provided crew JSON\n⚠ PII — never leaves app&quot;]
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    pipeline[&quot;&lt;b&gt;LOCAL: documaris native app&lt;/b&gt;\n1. Data Fetch\n2. Field Mapping\n3. AI Fill (local OSS model)\n4. Trust Layer (BLAKE3 + Ed25519)\n5. Regulatory Alert\n6. Render → PDF&quot;]
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    pdf[&quot;PDF\n→ local file system&quot;]
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    local_log[&quot;&lt;b&gt;Local audit log&lt;/b&gt;\nappend-only · tamper-evident\nagent&#39;s own record · always available&quot;]
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    remote_store[&quot;&lt;b&gt;REMOTE: tamper-proof audit store&lt;/b&gt;\nappend-only\nappend-only R2 bucket (MVP) → immugate (future)\nqueryable by authorities &amp; P&amp;I Clubs&quot;]
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    maridb --&gt;|&quot;push — maridb copy job&quot;| r2
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    r2 --&gt;|&quot;download on first run / refresh&quot;| cache
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    cache --&gt; pipeline
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    crew --&gt; pipeline
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    pipeline --&gt; pdf
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    pipeline --&gt;|&quot;AuditRecord\n(no PII, no raw content)&quot;| local_log
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    local_log -.-&gt;|&quot;edgesentry-audit store-and-forward\nqueued if offline&quot;| remote_store
+</code></pre></div>
+<hr />
+<h2 id="layer-1-data-fetch">Layer 1 — Data Fetch</h2>
+<p>documaris reads exclusively from its own Cloudflare R2 bucket. maridb is responsible for copying the data documaris needs into this bucket. This keeps the dependency clean: maridb serves multiple applications (arktrace, documaris, and future products) and adding direct cross-app R2 bucket access would create tight coupling between consumers.</p>
+<p><strong>Responsibility split:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Responsibility</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ingesting raw vessel, voyage, cargo, and AIS data</td>
+<td>maridb</td>
+</tr>
+<tr>
+<td>Transforming and writing data to the documaris R2 bucket</td>
+<td>maridb (copy job)</td>
+</tr>
+<tr>
+<td>Reading from the documaris R2 bucket</td>
+<td>documaris app only</td>
+</tr>
+<tr>
+<td>Schema of the documaris R2 bucket</td>
+<td>Agreed jointly at M0; owned by documaris</td>
+</tr>
+</tbody>
+</table>
+<p><strong>documaris R2 layout (target schema — copy job implemented by maridb):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>s3://documaris-bucket/
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  vessels/vessel_id=IMO1234567/data.parquet   ← name, flag, IMO, GT, LOA, certificates
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  voyages/voyage_id=V20260424/data.parquet    ← departure/arrival port, ETA, ETD
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  cargo/voyage_id=V20260424/data.parquet      ← HS codes, quantities, DG flags, BL refs
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  events/vessel_id=IMO1234567/2026-04-24.json ← AIS position fixes, port entry/exit
+</code></pre></div></p>
+<blockquote>
+<p><strong>Schema contract (M0):</strong> the documaris R2 partition layout is the interface contract between maridb and documaris. It must be agreed before Milestone 0 completes. maridb's existing R2 output (AIS and vessel scoring data for arktrace) uses a different schema; the copy job for documaris is a separate pipeline that maridb must implement without modifying its existing outputs.</p>
+</blockquote>
+<p>DuckDB runs in-process (Rust <code>duckdb</code> crate, <code>bundled</code> feature) to JOIN across Parquet files with a single SQL query and output a flat JSON record. The <code>object_store</code> crate (<code>aws</code> feature) handles S3-compatible download from the documaris R2 bucket; swapping to a local file system for development requires no code change.</p>
+<p><strong>Crew PII is never stored in R2.</strong> It is provided by the user directly inside the native app and never leaves the local machine (see Layer 6 and the privacy boundary section).</p>
+<p><strong>Key dependencies:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">object_store</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;0.10&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">features</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;aws&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">duckdb</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;1.1&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">features</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;bundled&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">tokio</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">features</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;full&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div></p>
+<hr />
+<h2 id="layer-2-field-mapping">Layer 2 — Field Mapping</h2>
+<p>Each document type has a <code>field_map.json</code> that maps every form field to its maridb source and specifies how it should be filled:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;form_field&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;brief_cargo_description&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">&quot;source&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;maridb.cargo.manifest_summary&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;llm_summarise&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">&quot;llm_required&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">&quot;llm_prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Summarise the cargo manifest in one line suitable for IMO FAL Form 1 field 13.&quot;</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">}</span>
+</code></pre></div>
+<p>Field types: <code>direct</code> (copy as-is) · <code>llm_summarise</code> · <code>llm_translate</code> · <code>llm_infer</code> · <code>computed</code>.</p>
+<p>This schema is the formal contract between maridb's data layout and documaris's form templates. It must be agreed before Milestone 0 begins. Field source paths use the <code>maridb.*</code> namespace (e.g. <code>maridb.cargo.manifest_summary</code>).</p>
+<hr />
+<h2 id="layer-3-ai-fill">Layer 3 — AI Fill</h2>
+<p>The AI fill layer is decoupled from any specific model or delivery mechanism behind a Rust trait:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="cp">#[async_trait]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">LlmProvider</span><span class="p">:</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">fill_field</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">req</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">FieldFillRequest</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">FieldFillResponse</span><span class="p">,</span><span class="w"> </span><span class="n">LlmError</span><span class="o">&gt;</span><span class="p">;</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">extract_image</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">image</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"> </span><span class="n">schema_hint</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">Value</span><span class="p">,</span><span class="w"> </span><span class="n">LlmError</span><span class="o">&gt;</span><span class="p">;</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">}</span>
+</code></pre></div>
+<p>Swapping local vs. cloud, or native app vs. server, is a <code>config.toml</code> change; no code change required.</p>
+<blockquote>
+<p><strong>⚠ Implementation under review:</strong> The specific model selection (local open-source model vs. cloud API) and delivery mechanism (native app vs. web app) are being evaluated. Options under consideration include distributing a permissively licensed (Apache 2.0 / MIT) model with the application to eliminate cloud API costs and network dependencies. Model names and provider details will be specified once the architecture decision is finalised.</p>
+</blockquote>
+<p><strong>Capability requirements (delivery-mechanism-independent):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Direct field copy</td>
+<td>No AI needed</td>
+</tr>
+<tr>
+<td>Cargo summary, FAL free-text</td>
+<td>Multilingual text generation (English / Japanese)</td>
+</tr>
+<tr>
+<td>Japanese field fill / translation</td>
+<td>Japanese language support required</td>
+</tr>
+<tr>
+<td>Regulatory conflict detection</td>
+<td>Structured JSON output with confidence score</td>
+</tr>
+<tr>
+<td>Japanese handwriting OCR + hanko (Phase 2)</td>
+<td>Vision / multimodal capability required</td>
+</tr>
+<tr>
+<td>Long-context multi-document reasoning</td>
+<td>Extended context window required</td>
+</tr>
+</tbody>
+</table>
+<p>All prompts request structured JSON output with a <code>confidence</code> field. Low-confidence fields surface as UI warnings and are never silently auto-submitted.</p>
+<hr />
+<h2 id="layer-4-trust-layer">Layer 4 — Trust Layer</h2>
+<p>Implemented by reusing <strong><code>edgesentry-audit</code></strong> — the shared Rust crate from <code>edgesentry-rs</code> (<code>blake3 = "1.5"</code>, <code>ed25519-dalek = "2.1"</code>). No new crypto code is written in documaris.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[dependencies]</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">edgesentry-audit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;../edgesentry-rs/crates/edgesentry-audit&quot;</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Remote audit store — MVP and future:</strong></p>
+<blockquote>
+<p><strong>MVP:</strong> an append-only Cloudflare R2 bucket. Tamper-evidence comes from the hash chain and Ed25519 signatures produced by edgesentry-audit — not from R2's storage guarantees. The bucket is write-only (no DELETE, no overwrite); any modification to a stored record breaks the chain and is detectable.</p>
+<p><strong>Future:</strong> <strong>immugate</strong> — a commercial service to be built by this team, providing a dedicated tamper-proof audit log with a public Merkle-tree verification API. immugate is not yet built; the R2 bucket is the production interim. The store-and-forward endpoint in edgesentry-audit is the only change needed when immugate ships.</p>
+</blockquote>
+<p><strong>Responsibility boundary — edgesentry-audit is domain-agnostic:</strong></p>
+<p><code>edgesentry-audit</code> is an independent library. It knows nothing about vessels, voyages, documents, or AI fields. It receives opaque bytes and returns a sealed record. All maritime semantics live in documaris.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>flowchart TD
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    payload[&quot;&lt;b&gt;documaris&lt;/b&gt; constructs DocumentAuditPayload\nvessel_id · voyage_id · doc_type\ngenerated_by · generated_at\nai_field_values · llm_confidence_flags\nfields_modified · regulatory_alerts\n&lt;i&gt;(Class C only — no PII)&lt;/i&gt;&quot;]
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    bytes[&quot;serialize → opaque bytes&quot;]
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    seal[&quot;&lt;b&gt;edgesentry-audit&lt;/b&gt;\nseal(payload_bytes, prev_hash, signing_key)\n&lt;i&gt;domain-agnostic — knows nothing about maritime fields&lt;/i&gt;&quot;]
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    record[&quot;AuditRecord\npayload_hash (BLAKE3)\nprev_record_hash\nsignature (Ed25519)\nseq · ts&quot;]
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    xmp[&quot;hash embedded in\nPDF XMP /DocumentHash&quot;]
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    local[&quot;&lt;b&gt;[1] LOCAL audit log&lt;/b&gt;\nnative app · append-only\nwritten first · always available&quot;]
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    remote[&quot;&lt;b&gt;[2] REMOTE audit store&lt;/b&gt;\nappend-only R2 bucket (MVP)\nimmugate · future commercial service&quot;]
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    payload --&gt; bytes --&gt; seal --&gt; record
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    record --&gt; xmp
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    record --&gt; local
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    local -.-&gt;|&quot;store-and-forward\nqueued if offline&quot;| remote
+</code></pre></div>
+<p><strong>edgesentry-audit's public interface (simplified):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1">// All documaris-specific fields are in the opaque payload_bytes.</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1">// edgesentry-audit seals whatever bytes it receives.</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">fn</span><span class="w"> </span><span class="nf">seal</span><span class="p">(</span><span class="n">payload_bytes</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"> </span><span class="n">prev_hash</span><span class="p">:</span><span class="w"> </span><span class="nc">Hash32</span><span class="p">,</span><span class="w"> </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">SigningKey</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">AuditRecord</span><span class="p">;</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="k">fn</span><span class="w"> </span><span class="nf">verify</span><span class="p">(</span><span class="n">record</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">AuditRecord</span><span class="p">,</span><span class="w"> </span><span class="n">payload_bytes</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="p">;</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1">// store-and-forward: knows only the endpoint URL, not the payload semantics</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="k">fn</span><span class="w"> </span><span class="nf">queue_and_sync</span><span class="p">(</span><span class="n">record</span><span class="p">:</span><span class="w"> </span><span class="nc">AuditRecord</span><span class="p">,</span><span class="w"> </span><span class="n">payload_bytes</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">endpoint</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">Url</span><span class="p">);</span>
+</code></pre></div></p>
+<p><strong>Tamper-evidence is structural, not policy:</strong>
+- <strong>Hash chain:</strong> each record includes <code>prev_record_hash</code>. Inserting, modifying, or deleting any record breaks all subsequent hashes in the chain — detectable by any party holding a copy.
+- <strong>Ed25519 signature:</strong> each record is signed with the operator's key. Modifying a record breaks its signature.
+- <strong>Dual copy:</strong> the local log and the remote log can be cross-verified against each other. An attacker would need to compromise both simultaneously to suppress evidence.
+- <strong>Sequence numbers:</strong> gaps in the sequence are detectable — records cannot be silently dropped.</p>
+<p><strong>What the audit log records (no PII, full action trace):</strong></p>
+<table>
+<thead>
+<tr>
+<th>What happened</th>
+<th>What's recorded</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Document generated</td>
+<td>who, when, which vessel/voyage (by ID), document type</td>
+</tr>
+<tr>
+<td>AI filled a field</td>
+<td>what text was generated, confidence score</td>
+</tr>
+<tr>
+<td>Reviewer accepted a low-confidence field</td>
+<td>that they accepted it, the confidence at the time</td>
+</tr>
+<tr>
+<td>Reviewer corrected a field</td>
+<td>before value, after value, editor identity</td>
+</tr>
+<tr>
+<td>Regulatory alert raised</td>
+<td>severity, rule triggered, resolution action</td>
+</tr>
+<tr>
+<td>MEDIUM alert overridden</td>
+<td>reason code entered by reviewer, their identity</td>
+</tr>
+<tr>
+<td>Document hash embedded in PDF</td>
+<td>the hash (not the document content)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Root cause analysis:</strong> agents and authorities can query either copy to reconstruct the exact sequence of actions that produced a document — without retrieving any crew PII. Whether a port rejection was caused by an AI error, a reviewer override, post-generation tampering, or a source data issue is answerable from the audit log alone.</p>
+<p><strong>Verification:</strong> <code>GET /audit/verify?hash=&lt;blake3_hex&gt;</code> → <code>{ "verified": true, chain_intact: true, … }</code> — served by the remote audit store, independent of documaris.</p>
+<p>documaris also auto-generates an <strong>AIS Voyage Evidence Summary</strong> companion document — a natural-language summary of the vessel's AIS track (departure port/time, transit, arrival, port stay duration), generated from maridb's AIS event Parquet data via the AI fill layer. The summary is treated as a payload and sealed by edgesentry-audit identically to any other document — the library does not distinguish it from a FAL form. This turns a form generator into a verifiable audit instrument: false declarations become detectable.</p>
+<p><strong>TrustSG / IMDA alignment:</strong> the Trust Layer directly addresses two TrustSG pillars — Authenticity (Ed25519 signature proves the document originated from verified vessel data) and Integrity (BLAKE3 hash + append-only audit log proves no post-generation modification). This positions documaris as national-grade trust infrastructure for maritime document exchange, not a convenience tool.</p>
+<hr />
+<h2 id="layer-5-regulatory-alert">Layer 5 — Regulatory Alert</h2>
+<p>At generation time, the AI fill layer cross-references the vessel snapshot against a per-port JSON regulatory knowledge base and returns a structured conflict list:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>flowchart LR
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    vessel[&quot;vessel snapshot&quot;]
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    kb[&quot;port regulatory KB\n(JSON, per port)&quot;]
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    llm[&quot;AI conflict check&quot;]
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    high[&quot;🔴 HIGH\nblock submission&quot;]
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    medium[&quot;🟡 MEDIUM\nwarn · reviewer override\nreason code · audit-logged&quot;]
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    low[&quot;🟢 LOW\nnote in PDF cover sheet&quot;]
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    vessel --&gt; llm
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    kb --&gt; llm
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    llm --&gt; high
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    llm --&gt; medium
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    llm --&gt; low
+</code></pre></div>
+<p>No hard-coded rule logic; the AI model evaluates natural-language rule descriptions against vessel data. The knowledge base is updated by a combination of automated port-notice monitoring and manual review.</p>
+<p>Example rules: BWM D-2 certificate validity, crew document expiry windows within port-specific minimum periods, DG cargo restrictions under current port circulars, quarantine pre-notification window compliance.</p>
+<p>This layer shifts documaris from "document automation tool" (commoditised) to <strong>"compliance advisor"</strong> (high switching cost). A single avoided port detention justifies an annual subscription many times over.</p>
+<hr />
+<h2 id="layer-6-render">Layer 6 — Render</h2>
+<p>All forms — including those containing crew PII — are rendered inside the native app. There is no server-side rendering path and no split between PII and non-PII forms. The server-side / client-side duality that a browser-based approach required is eliminated.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>flowchart TD
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    vessel_json[&quot;vessel/voyage JSON\n(local cache)&quot;]
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    crew_json[&quot;crew JSON\n(user-provided · local only)\n⚠ PII — never transmitted&quot;]
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    render[&quot;Field map → Tera template\n→ HTML → native PDF renderer&quot;]
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    trust[&quot;Trust Layer\nBLAKE3 hash in XMP · Ed25519 signature&quot;]
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    pdf_out[&quot;PDF → local file system&quot;]
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    local_log[&quot;&lt;b&gt;[1] LOCAL audit log&lt;/b&gt;\nwritten immediately\nagent&#39;s own record&quot;]
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    remote_store[&quot;&lt;b&gt;[2] REMOTE audit store&lt;/b&gt;\nappend-only R2 bucket (MVP)\nimmugate · future&quot;]
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    vessel_json --&gt; render
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>    crew_json --&gt; render
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>    render --&gt; trust
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>    trust --&gt; pdf_out
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>    trust --&gt;|&quot;AuditRecord + payload_bytes&quot;| local_log
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>    local_log -.-&gt;|&quot;edgesentry-audit\nstore-and-forward&quot;| remote_store
+</code></pre></div>
+<p><strong>Offline-first:</strong> The entire pipeline — data fetch cache, AI fill model, PDF render, signing key, and local audit log write — runs without a network connection. A ship's steel engine room with no signal is a supported environment. The remote audit log sync is the only network-dependent step, and it is queued with store-and-forward (via edgesentry-audit) until connectivity resumes. The local audit log is always written first, so the agent's own tamper-evident record is available immediately regardless of connectivity.</p>
+<p><strong>Privacy:</strong> Because everything runs inside the native app process, there is no server-side code path at all for document generation. The privacy guarantee is structurally enforced, not a matter of configuration. Veson Nautical, ShipNet, and Helm CONNECT all require active server connectivity to render documents; documaris eliminates that dependency entirely.</p>
+<hr />
+<h2 id="ocr-reverse-ingestion-phase-2-post-pier71-roadmap">OCR / Reverse Ingestion (Phase 2 — post-PIER71 roadmap)</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>smartphone photo (JPEG)
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    │
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    ▼ vision-capable AI model (local, multimodal — model TBD)
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>      &quot;Extract fields from this Japanese maritime form. Return structured JSON.&quot;
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    │
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    ▼ JSON extraction with per-field confidence + hanko_verification:
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>      {
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>        &quot;vessel_name&quot;: { &quot;value&quot;: &quot;...&quot;, &quot;confidence&quot;: &quot;high&quot; },
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>        &quot;hanko_verification&quot;: {
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>          &quot;detected&quot;: true,
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>          &quot;clarity_score&quot;: 0.87,
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>          &quot;overlap_score&quot;: 0.12,
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>          &quot;naccs_risk&quot;: &quot;low&quot;
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>        }
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>      }
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>    │
+<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a>    ▼ Intermediate JSON review UI (native app)
+<a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a>      All fields editable; low-confidence fields highlighted
+<a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a>      Hanko-Confidence Score meter + NACCS risk indicator
+<a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a>      &quot;Confirm and proceed&quot; gate before NACCS format conversion
+<a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a>    │
+<a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a>    ▼ NACCS-formatted output
+</code></pre></div>
+<p>The <strong>Hanko-Confidence Score</strong> (0.0–1.0) detects the presence, clarity, and text-overlap of a hanko stamp, predicting NACCS automated-check rejection risk. This directly addresses Japan's paper-authentication culture and closes the trust gap between paper and digital workflows. No competing maritime software offers this.</p>
+<hr />
+<h2 id="compliance-and-operations-policy">Compliance and Operations Policy</h2>
+<h3 id="data-classification">Data classification</h3>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Contents</th>
+<th>Examples</th>
+<th>Server storage</th>
+<th>Retention</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Class A — PII</strong></td>
+<td>Personal data directly identifying an individual</td>
+<td>Crew name, passport number, date of birth, nationality</td>
+<td>None — local processing only</td>
+<td>0 days — not stored by design</td>
+</tr>
+<tr>
+<td><strong>Class B — Sensitive</strong></td>
+<td>Vessel compliance status and risk-relevant flags</td>
+<td>Certificate validity, incident flags, DG declarations</td>
+<td>Cloudflare R2 (maridb-controlled, access-logged)</td>
+<td>Per maridb data policy</td>
+</tr>
+<tr>
+<td><strong>Class C — Operational</strong></td>
+<td>Vessel/voyage/cargo metadata with no personal identifiers; AI-generated field values (non-PII)</td>
+<td>IMO number, flag, GT, voyage dates, cargo HS codes, document hashes, AI-generated cargo description text, AI confidence scores per field</td>
+<td>maridb R2 (read by app) + append-only R2 audit bucket (AuditRecord + DocumentAuditPayload); immugate in future</td>
+<td>Audit records: 365 days; generation logs: 180 days; error logs: 30 days (redacted)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="data-flow-boundary">Data flow boundary</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>LOCAL (documaris native app):
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>  ├─ Class A (PII)     — crew data supplied by user; never transmitted
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>  ├─ Class B/C         — vessel/voyage/cargo pulled from maridb R2, cached locally
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>  ├─ AI model          — bundled/downloaded; runs fully offline
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>  ├─ Regulatory KB     — bundled; updated via app update mechanism
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>  └─ PDF output        — written to local file system only
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>REMOTE read (documaris R2 bucket, S3-compatible — read-only for app):
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>  └─ vessel/voyage/cargo Parquet — copied here by maridb; downloaded on
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>     first run and on refresh; no PII ever stored here
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>REMOTE write (tamper-proof audit store — append-only R2 bucket (MVP) → immugate (future), append-only):
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>  └─ AuditRecord (BLAKE3 hash, Ed25519 signature, seq, ts)
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>     + DocumentAuditPayload (Class C — no PII, no raw PDF content)
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>       vessel_id, voyage_id, doc_type, generated_by, generated_at,
+<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>       ai_field_values, llm_confidence per field, fields_modified,
+<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>       regulatory_alerts
+<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>     (queued locally by edgesentry-audit store-and-forward if offline)
+</code></pre></div>
+<h3 id="processing-and-storage-rules">Processing and storage rules</h3>
+<ul>
+<li><strong>Class A</strong> is processed inside the native app only. It is never transmitted to any remote system. No network call contains Class A data — verifiable by code inspection.</li>
+<li><strong>Class B / C</strong> is downloaded from maridb R2 and processed locally inside the app. It is not re-uploaded to any documaris server.</li>
+<li>The only remote write is the AuditRecord + DocumentAuditPayload (Class C) to the tamper-proof audit store (append-only R2 bucket, MVP). No document content and no PII is stored remotely.</li>
+</ul>
+<h3 id="access-control">Access control</h3>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Permissions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Operator</strong></td>
+<td>Generate documents; view own audit records</td>
+</tr>
+<tr>
+<td><strong>Reviewer</strong></td>
+<td>All Operator permissions; override MEDIUM alerts (with reason code); confirm low-confidence fields</td>
+</tr>
+<tr>
+<td><strong>Admin</strong></td>
+<td>All Reviewer permissions; manage regulatory KB; access full generation logs</td>
+</tr>
+</tbody>
+</table>
+<p>All document-generation events and manual field edits are audit-logged with role, user identity, timestamp, and field class. Quarterly access review conducted by security owner; unused accounts deprovisioned.</p>
+<h3 id="responsibility-boundary">Responsibility boundary</h3>
+<table>
+<thead>
+<tr>
+<th>Responsibility</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hash audit trail, template management, regulatory KB maintenance</td>
+<td>documaris</td>
+</tr>
+<tr>
+<td>Original PII management (crew records, travel documents)</td>
+<td>Customer (ship agent / operator)</td>
+</tr>
+<tr>
+<td>Final submission to port authority</td>
+<td>Customer</td>
+</tr>
+<tr>
+<td>Regulatory KB accuracy for new port circulars (human review gate)</td>
+<td>documaris</td>
+</tr>
+</tbody>
+</table>
+<h3 id="human-in-the-loop-gates">Human-in-the-loop gates</h3>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Gate</th>
+<th>Override</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM field confidence &lt; 0.80</td>
+<td>Field highlighted amber; PDF export blocked</td>
+<td>Reviewer confirms or corrects — required</td>
+</tr>
+<tr>
+<td>Regulatory Alert — HIGH</td>
+<td>PDF export blocked</td>
+<td><strong>Not permitted</strong> — resolution required</td>
+</tr>
+<tr>
+<td>Regulatory Alert — MEDIUM</td>
+<td>Warning shown; export allowed</td>
+<td>Reviewer may override with mandatory reason code; override audit-logged</td>
+</tr>
+<tr>
+<td>OCR <code>obscured_fields</code> (Phase 2)</td>
+<td>Field flagged red; export disabled</td>
+<td>Manual field entry required</td>
+</tr>
+</tbody>
+</table>
+<h3 id="audit-trail-per-document">Audit trail per document</h3>
+<p>Every generated document records the following in the maridb append-only audit log. No Class A (PII) data is included — crew names, passport numbers, and personal identifiers are never written to the log. All entries are Class C (operational) and support root cause analysis of submission errors and disputes without storing any personal data.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+<th>Root cause use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>generated_by</code></td>
+<td>User identity</td>
+<td>Who ran the generation</td>
+</tr>
+<tr>
+<td><code>generated_at</code></td>
+<td>ISO 8601 timestamp</td>
+<td>When — cross-reference with port rejection timestamp</td>
+</tr>
+<tr>
+<td><code>vessel_id</code> / <code>voyage_id</code></td>
+<td>maridb source references</td>
+<td>Which data snapshot was used; look up in maridb for the exact values at generation time</td>
+</tr>
+<tr>
+<td><code>audit_hash</code></td>
+<td>BLAKE3 hash of final PDF binary</td>
+<td>Was the submitted PDF the same as the generated PDF? Hash mismatch = tampered after generation</td>
+</tr>
+<tr>
+<td><code>signature</code></td>
+<td>Ed25519 signature</td>
+<td>Is the document authentic — from a valid documaris instance?</td>
+</tr>
+<tr>
+<td><code>ai_field_values</code></td>
+<td>AI-generated text per field (Class C only — no PII fields included)</td>
+<td>What exactly did the AI write? Cross-check against source data to identify AI summarisation errors</td>
+</tr>
+<tr>
+<td><code>llm_confidence_flags</code></td>
+<td>Per-field confidence score; whether reviewer accepted or corrected</td>
+<td>Which fields were uncertain; did the reviewer override a low-confidence output without correcting it?</td>
+</tr>
+<tr>
+<td><code>fields_modified</code></td>
+<td>Field names edited in human review step, before/after values, editor identity</td>
+<td>Was the submitted content what the AI generated, or did a reviewer change it?</td>
+</tr>
+<tr>
+<td><code>regulatory_alerts</code></td>
+<td>Alerts raised, severity, resolution action, reason code</td>
+<td>Were compliance warnings present? Were MEDIUM alerts overridden and why?</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Root cause analysis scenario:</strong> a port authority rejects FAL Form 1 because the cargo description doesn't match the manifest. The agent queries <code>GET /audit/verify?hash=&lt;blake3_hex&gt;</code> and finds: <code>brief_cargo_description</code> was AI-generated at confidence 0.73 (below 0.80 → amber flag shown); the reviewer accepted without correction; the AI wrote "containerised electronics" while the maridb source (<code>voyage_id=V20260424</code>) recorded "2,400 units mobile phones". Root cause identified without storing any crew PII: AI produced a low-confidence summary and the reviewer did not verify it.</p>
+<p>Retrievable via <code>GET /audit/verify?hash=&lt;blake3_hex&gt;</code>.</p>
+<h3 id="incident-response-minimum-sla">Incident response (minimum SLA)</h3>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Detection to triage</td>
+<td>&lt; 4 hours</td>
+</tr>
+<tr>
+<td>Customer notification for confirmed data incident</td>
+<td>&lt; 24 hours</td>
+</tr>
+<tr>
+<td>Post-incident review report</td>
+<td>Within 5 business days</td>
+</tr>
+</tbody>
+</table>
+<h3 id="regulatory-compliance">Regulatory compliance</h3>
+<table>
+<thead>
+<tr>
+<th>Regulation</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Singapore PDPA</td>
+<td>Class A processed inside native app only; no cross-border transfer of PII; no documaris server receives crew data</td>
+</tr>
+<tr>
+<td>Japan APPI</td>
+<td>Same local processing; Phase 2 OCR runs a local model — no PII transmitted to any cloud service</td>
+</tr>
+<tr>
+<td>GDPR (EU-flagged vessels)</td>
+<td>Local processing satisfies data minimisation; no Class A data stored or transmitted</td>
+</tr>
+</tbody>
+</table>
+<p>This policy defines data classification, retention periods, role-based approval gates, audit log contents, and incident response SLAs as implementation requirements — making compliance posture operationally auditable rather than a matter of declaration.</p>
+<hr />
+<h2 id="cargo-workspace">Cargo Workspace</h2>
+<p>The full monorepo lives at <code>/edgesentry/</code>. One workspace root makes <code>edgesentry-audit</code> available to documaris without publishing:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># /edgesentry/Cargo.toml</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="k">[workspace]</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">members</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="s2">&quot;edgesentry-rs/crates/eds&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="s2">&quot;edgesentry-rs/crates/edgesentry-audit&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="s2">&quot;edgesentry-rs/crates/edgesentry-bridge&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="s2">&quot;edgesentry-rs/crates/edgesentry-inspect&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">    </span><span class="s2">&quot;documaris/crates/documaris-core&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">    </span><span class="s2">&quot;documaris/crates/documaris-cli&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="p">]</span>
+</code></pre></div>
+<p>One <code>Cargo.lock</code> for the entire repo; all products share dependency versions.</p>
+<hr />
+<h2 id="technology-stack-summary">Technology stack summary</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Technology</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App delivery</td>
+<td>Native desktop app (macOS / Windows / Linux); distributable installer</td>
+</tr>
+<tr>
+<td>Core pipeline</td>
+<td>Rust (<code>documaris-core</code> + <code>documaris-cli</code> crates)</td>
+</tr>
+<tr>
+<td>AI fill — text</td>
+<td>Local open-source model, Apache 2.0 / MIT licence (model TBD); bundled or downloaded on first run; runs fully offline via <code>LlmProvider</code> trait</td>
+</tr>
+<tr>
+<td>AI fill — vision / OCR (Phase 2)</td>
+<td>Local multimodal model (model TBD)</td>
+</tr>
+<tr>
+<td>PDF render</td>
+<td>Native PDF library (all forms, including PII; single render path)</td>
+</tr>
+<tr>
+<td>Template engine</td>
+<td>Tera (Rust)</td>
+</tr>
+<tr>
+<td>Document hashing + signing</td>
+<td><code>edgesentry-audit</code> path dep — BLAKE3 + Ed25519</td>
+</tr>
+<tr>
+<td>Data fetch</td>
+<td><code>object_store</code> crate, <code>aws</code> feature (S3-compatible; reads from documaris R2 bucket only)</td>
+</tr>
+<tr>
+<td>In-process query</td>
+<td>DuckDB (<code>duckdb</code> crate, <code>bundled</code> feature)</td>
+</tr>
+<tr>
+<td>Local data cache</td>
+<td>App-local directory; vessel/voyage/cargo Parquet snapshots from documaris R2</td>
+</tr>
+<tr>
+<td>Regulatory KB</td>
+<td>JSON per port, bundled with app; AI eval at generation time</td>
+</tr>
+<tr>
+<td>Audit log sync</td>
+<td>edgesentry-audit store-and-forward; queued locally when offline</td>
+</tr>
+<tr>
+<td>Data lake</td>
+<td>Cloudflare R2 — documaris bucket (maridb copy job writes; documaris app reads)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>See also: <a href="../ref-background/"><code>ref-background.md</code></a> · <a href="../roadmap/"><code>roadmap/index.md</code></a></em>
+<em>Full technical detail per layer: <code>_outputs/document-generation-architecture.md</code></em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "search.highlight", "content.action.edit", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

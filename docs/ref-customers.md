@@ -115,5 +115,5 @@ The 4 product tiers (Open 1, Open 2, Commercial Singapore, Commercial Japan) map
 
 1. **Who is the economic buyer vs. the daily user?** Operations manager approves subscription; documentation clerk uses the tool. Sales motion targets the manager; onboarding targets the clerk.
 2. **Does MPA's Port+ system expose an API for documaris to submit directly?** If yes, documaris becomes a generation + submission tool, not just a generation tool — significantly raising value and switching cost.
-3. **Who owns Regulatory KB updates?** Port regulations change. The Regulatory Alert is only as good as the knowledge base. Ownership of ongoing KB maintenance is unresolved — see `roadmap.md` open question #6.
+3. **Who owns Regulatory KB updates?** Port regulations change. The Regulatory Alert is only as good as the knowledge base. Ownership of ongoing KB maintenance is unresolved — see `roadmap/index.md` open question #6.
 4. **Can arktrace watchlist data feed a "document risk flag" in documaris?** If a vessel is on the arktrace high-risk watchlist, documaris could surface a warning at document generation time — before MPA sees the submission. This closes the arktrace → documaris loop and creates a uniquely defensible integration.

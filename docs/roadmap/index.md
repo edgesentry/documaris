@@ -225,7 +225,7 @@ The demo already runs. M5 is recording and narrative — no new code.
 **Deliverables:**
 - 2-minute screen recording (above structure)
 - PIER71 application form text (from `pier71-business-brief.md` submission-ready section)
-- Slide deck aligned to 15-slide structure in `pier71-evaluation-mapping.md`
+- Slide deck aligned to 15-slide structure in `ref-pier71-evaluation.md`
 
 ---
 
@@ -321,4 +321,4 @@ Raw input bytes (image / email / chat)
 
 ---
 
-*See also: [`background.md`](background.md) · [`architecture.md`](architecture.md)*
+*See also: [`ref-background.md`](../ref-background.md) · [`ref-architecture.md`](../ref-architecture.md)*

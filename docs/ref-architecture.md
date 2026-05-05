@@ -427,5 +427,5 @@ One `Cargo.lock` for the entire repo; all products share dependency versions.
 
 ---
 
-*See also: [`background.md`](background.md) · [`roadmap.md`](roadmap.md)*
+*See also: [`ref-background.md`](ref-background.md) · [`roadmap/index.md`](roadmap/index.md)*
 *Full technical detail per layer: `_outputs/document-generation-architecture.md`*
