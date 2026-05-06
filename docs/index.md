@@ -7,7 +7,8 @@ documaris consumes structured vessel, voyage, and cargo data from the [indago](h
 ## Quick links
 
 - [ref-background.md](ref-background.md) — product context, market positioning, open-core model
-- [ref-architecture.md](ref-architecture.md) — six-layer pipeline, data flow, compliance policy
+- [ref-architecture.md](ref-architecture.md) — six-layer pipeline, data flow
+- [ref-compliance-policy.md](ref-compliance-policy.md) — data classification (Class A/B/C), PII boundary, access control, audit trail
 - [ref-customers.md](ref-customers.md) — customer segments, use cases, unvalidated hypotheses
 - [roadmap/index.md](roadmap/index.md) — milestones M0–M5, demo test cases
 - [ref-pier71-evaluation.md](ref-pier71-evaluation.md) — alignment with Smart Port Challenge 2026 criteria
@@ -18,6 +19,6 @@ documaris consumes structured vessel, voyage, and cargo data from the [indago](h
 |---|---|
 | [indago](https://github.com/edgesentry/indago) | Data layer — vessel/voyage/cargo/AIS ingestion and transformation |
 | [arktrace](https://github.com/edgesentry/arktrace) | Shadow fleet detection — reads indago data; causal inference scoring |
-| **documaris** | Document layer — port call package generation, compliance checking |
+| [documaris](https://github.com/edgesentry/documaris) | Document layer — port call package generation, compliance checking |
 | [clarus](https://github.com/edgesentry/clarus) | Vessel risk intelligence — same vessel entity, `?mmsi=` deep-link |
 | [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) | Physical layer — audit chain (BLAKE3 + Ed25519) |

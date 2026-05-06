@@ -29,7 +29,7 @@ This document maps each of the 10 deck evaluation criteria from the PIER71 SPC A
 | IO | Title | How documaris addresses it |
 |---|---|---|
 | **PIER71-11** | AI-Powered Port Call Documentation | Core product: AI-assisted generation of FAL Form 1, FAL Form 5, and Singapore port entry package from indago vessel/voyage/cargo data; Regulatory Alert layer adds AI-powered compliance checking at generation time |
-| **PIER71-02** | Managing Cybersecurity Risks and Incidences | Natural Phase 2 extension via edgesentry-audit: crew PII processed locally — never transits the server; cryptographic document signing (Ed25519) and tamper-evident audit trail (BLAKE3 + append-only log) address document integrity and non-repudiation; aligns with IMDA TrustSG Authenticity + Integrity pillars; same trust layer already deployed for PIER71-11 |
+| **PIER71-02** | Managing Cybersecurity Risks and Incidences | Natural Phase 2 extension via [`edgesentry-audit`](https://github.com/edgesentry/edgesentry-rs): crew PII processed locally — never transits the server; cryptographic document signing (Ed25519) and tamper-evident audit trail (BLAKE3 + append-only log) address document integrity and non-repudiation; aligns with IMDA TrustSG Authenticity + Integrity pillars; same trust layer already deployed for PIER71-11 |
 | **PIER71-20** | Fire Safety Management for Combustible Ship Cargo | Dark-horse Phase 3 adjacent product: NLP manifest screening for LIB misdeclarations using the same arktrace text-analysis pipeline; IMO IMDG Code 42-24 mandatory from January 2026 creates immediate regulatory urgency; Hakata Port RORO terminal (EV imports) and Kitakyushu hazardous goods terminal provide Japan-side pilot demand |
 
 ---

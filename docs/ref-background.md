@@ -32,8 +32,8 @@ documaris is the "paper layer" in a four-product stack:
 |---|---|
 | **indago** | Data layer — vessel/voyage/cargo/AIS ingestion and transformation pipelines; Parquet/JSON data lake on Cloudflare R2. [github.com/edgesentry/indago](https://github.com/edgesentry/indago) |
 | **arktrace** | Shadow fleet detection application — causal inference scoring, ownership graph analysis, analyst dashboard. Reads AIS and vessel data from indago. [github.com/edgesentry/arktrace](https://github.com/edgesentry/arktrace) |
-| **edgesentry** | Physical layer — robotic inspection, sensor deployment, audit firmware (Rust, `edgesentry-rs`) |
-| **documaris** | Document layer — port call package generation, compliance checking, PDF rendering |
+| **edgesentry** | Physical layer — robotic inspection, sensor deployment, audit firmware (Rust, [`edgesentry-rs`](https://github.com/edgesentry/edgesentry-rs)) |
+| **documaris** | Document layer — port call package generation, compliance checking, PDF rendering. [github.com/edgesentry/documaris](https://github.com/edgesentry/documaris) |
 
 indago is the shared data foundation — it collects and transforms raw vessel, voyage, cargo, and AIS data into a structured Parquet data lake on Cloudflare R2. documaris reads from indago's R2 to generate port call documents. arktrace reads the same indago data as the input to its shadow fleet detection pipeline. In Phase 1 and 2, both operate without hardware; edgesentry enters in Phase 3.
 

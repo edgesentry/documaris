@@ -103,6 +103,18 @@ pub trait LlmProvider: Send + Sync {
 Swapping local vs. cloud, or native app vs. server, is a `config.toml` change; no code change required.
 
 > **⚠ Implementation under review:** The specific model selection (local open-source model vs. cloud API) and delivery mechanism (native app vs. web app) are being evaluated. Options under consideration include distributing a permissively licensed (Apache 2.0 / MIT) model with the application to eliminate cloud API costs and network dependencies. Model names and provider details will be specified once the architecture decision is finalised.
+>
+> **Apache 2.0 / MIT compatible model candidates:**
+>
+> | Model | Licence | Size | Notes |
+> |-------|---------|------|-------|
+> | [Llama 3.2 3B Instruct](https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct) | Llama 3.2 Community (≈Apache 2.0 for <700M MAU) | 3B | Good instruction following; runs on CPU via llama.cpp / MLX; already used in clarus explain step |
+> | [Qwen 2.5 3B Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct) | Apache 2.0 | 3B | Strong multilingual (EN/JA/ZH); relevant for Japan NACCS Phase 2 |
+> | [Qwen 2.5 7B Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) | Apache 2.0 | 7B | Higher accuracy for llm_summarise / llm_translate fields; requires ~6 GB RAM |
+> | [Mistral 7B Instruct v0.3](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3) | Apache 2.0 | 7B | Strong instruction following; well-tested with llama.cpp GGUF; European regulatory text |
+> | [Phi-3.5 Mini Instruct](https://huggingface.co/microsoft/Phi-3.5-mini-instruct) | MIT | 3.8B | Compact; runs efficiently on CPU; good for short structured-output tasks (field inference) |
+>
+> Selection criteria: the chosen model must handle `llm_summarise`, `llm_translate` (EN/JA minimum), and `llm_infer` field types at acceptable quality. Offline-first constraint favours 3B–7B GGUF models runnable via llama.cpp with no GPU requirement.
 
 **Capability requirements (delivery-mechanism-independent):**
 
@@ -121,11 +133,11 @@ All prompts request structured JSON output with a `confidence` field. Low-confid
 
 ## Layer 4 — Trust Layer
 
-Implemented by reusing **`edgesentry-audit`** — the shared Rust crate from `edgesentry-rs` (`blake3 = "1.5"`, `ed25519-dalek = "2.1"`). No new crypto code is written in documaris.
+Implemented by reusing **`edgesentry-audit`** — the shared Rust crate from [`edgesentry-rs`](https://github.com/edgesentry/edgesentry-rs) (`blake3 = "1.5"`, `ed25519-dalek = "2.1"`). No new crypto code is written in documaris.
 
 ```toml
 [dependencies]
-edgesentry-audit = { path = "../edgesentry-rs/crates/edgesentry-audit" }
+edgesentry-audit = { git = "https://github.com/edgesentry/edgesentry-rs", tag = "v0.1.0" }
 ```
 
 **Remote audit store — MVP and future:**
@@ -251,7 +263,8 @@ flowchart TD
 ## OCR / Reverse Ingestion (Phase 2 — post-PIER71 roadmap)
 
 ```
-smartphone photo (JPEG)
+image input (JPEG / PNG / PDF scan)
+  — smartphone photo, flatbed scanner, MFP scan-to-email, digital camera
     │
     ▼ vision-capable AI model (local, multimodal — model TBD)
       "Extract fields from this Japanese maritime form. Return structured JSON."
@@ -281,123 +294,28 @@ The **Hanko-Confidence Score** (0.0–1.0) detects the presence, clarity, and te
 
 ## Compliance and Operations Policy
 
-### Data classification
-
-| Class | Contents | Examples | Server storage | Retention |
-|---|---|---|---|---|
-| **Class A — PII** | Personal data directly identifying an individual | Crew name, passport number, date of birth, nationality | None — local processing only | 0 days — not stored by design |
-| **Class B — Sensitive** | Vessel compliance status and risk-relevant flags | Certificate validity, incident flags, DG declarations | Cloudflare R2 (indago-controlled, access-logged) | Per indago data policy |
-| **Class C — Operational** | Vessel/voyage/cargo metadata with no personal identifiers; AI-generated field values (non-PII) | IMO number, flag, GT, voyage dates, cargo HS codes, document hashes, AI-generated cargo description text, AI confidence scores per field | indago R2 (read by app) + append-only R2 audit bucket (AuditRecord + DocumentAuditPayload); immugate in future | Audit records: 365 days; generation logs: 180 days; error logs: 30 days (redacted) |
-
-### Data flow boundary
-
-```
-LOCAL (documaris native app):
-  ├─ Class A (PII)     — crew data supplied by user; never transmitted
-  ├─ Class B/C         — vessel/voyage/cargo pulled from indago R2, cached locally
-  ├─ AI model          — bundled/downloaded; runs fully offline
-  ├─ Regulatory KB     — bundled; updated via app update mechanism
-  └─ PDF output        — written to local file system only
-
-REMOTE read (documaris R2 bucket, S3-compatible — read-only for app):
-  └─ vessel/voyage/cargo Parquet — copied here by indago; downloaded on
-     first run and on refresh; no PII ever stored here
-
-REMOTE write (tamper-proof audit store — append-only R2 bucket (MVP) → immugate (future), append-only):
-  └─ AuditRecord (BLAKE3 hash, Ed25519 signature, seq, ts)
-     + DocumentAuditPayload (Class C — no PII, no raw PDF content)
-       vessel_id, voyage_id, doc_type, generated_by, generated_at,
-       ai_field_values, llm_confidence per field, fields_modified,
-       regulatory_alerts
-     (queued locally by edgesentry-audit store-and-forward if offline)
-```
-
-### Processing and storage rules
-
-- **Class A** is processed inside the native app only. It is never transmitted to any remote system. No network call contains Class A data — verifiable by code inspection.
-- **Class B / C** is downloaded from indago R2 and processed locally inside the app. It is not re-uploaded to any documaris server.
-- The only remote write is the AuditRecord + DocumentAuditPayload (Class C) to the tamper-proof audit store (append-only R2 bucket, MVP). No document content and no PII is stored remotely.
-
-### Access control
-
-| Role | Permissions |
-|---|---|
-| **Operator** | Generate documents; view own audit records |
-| **Reviewer** | All Operator permissions; override MEDIUM alerts (with reason code); confirm low-confidence fields |
-| **Admin** | All Reviewer permissions; manage regulatory KB; access full generation logs |
-
-All document-generation events and manual field edits are audit-logged with role, user identity, timestamp, and field class. Quarterly access review conducted by security owner; unused accounts deprovisioned.
-
-### Responsibility boundary
-
-| Responsibility | Owner |
-|---|---|
-| Hash audit trail, template management, regulatory KB maintenance | documaris |
-| Original PII management (crew records, travel documents) | Customer (ship agent / operator) |
-| Final submission to port authority | Customer |
-| Regulatory KB accuracy for new port circulars (human review gate) | documaris |
-
-### Human-in-the-loop gates
-
-| Condition | Gate | Override |
-|---|---|---|
-| LLM field confidence < 0.80 | Field highlighted amber; PDF export blocked | Reviewer confirms or corrects — required |
-| Regulatory Alert — HIGH | PDF export blocked | **Not permitted** — resolution required |
-| Regulatory Alert — MEDIUM | Warning shown; export allowed | Reviewer may override with mandatory reason code; override audit-logged |
-| OCR `obscured_fields` (Phase 2) | Field flagged red; export disabled | Manual field entry required |
-
-### Audit trail per document
-
-Every generated document records the following in the indago append-only audit log. No Class A (PII) data is included — crew names, passport numbers, and personal identifiers are never written to the log. All entries are Class C (operational) and support root cause analysis of submission errors and disputes without storing any personal data.
-
-| Field | Value | Root cause use |
-|---|---|---|
-| `generated_by` | User identity | Who ran the generation |
-| `generated_at` | ISO 8601 timestamp | When — cross-reference with port rejection timestamp |
-| `vessel_id` / `voyage_id` | indago source references | Which data snapshot was used; look up in indago for the exact values at generation time |
-| `audit_hash` | BLAKE3 hash of final PDF binary | Was the submitted PDF the same as the generated PDF? Hash mismatch = tampered after generation |
-| `signature` | Ed25519 signature | Is the document authentic — from a valid documaris instance? |
-| `ai_field_values` | AI-generated text per field (Class C only — no PII fields included) | What exactly did the AI write? Cross-check against source data to identify AI summarisation errors |
-| `llm_confidence_flags` | Per-field confidence score; whether reviewer accepted or corrected | Which fields were uncertain; did the reviewer override a low-confidence output without correcting it? |
-| `fields_modified` | Field names edited in human review step, before/after values, editor identity | Was the submitted content what the AI generated, or did a reviewer change it? |
-| `regulatory_alerts` | Alerts raised, severity, resolution action, reason code | Were compliance warnings present? Were MEDIUM alerts overridden and why? |
-
-**Root cause analysis scenario:** a port authority rejects FAL Form 1 because the cargo description doesn't match the manifest. The agent queries `GET /audit/verify?hash=<blake3_hex>` and finds: `brief_cargo_description` was AI-generated at confidence 0.73 (below 0.80 → amber flag shown); the reviewer accepted without correction; the AI wrote "containerised electronics" while the indago source (`voyage_id=V20260424`) recorded "2,400 units mobile phones". Root cause identified without storing any crew PII: AI produced a low-confidence summary and the reviewer did not verify it.
-
-Retrievable via `GET /audit/verify?hash=<blake3_hex>`.
-
-### Incident response (minimum SLA)
-
-| Event | Target |
-|---|---|
-| Detection to triage | < 4 hours |
-| Customer notification for confirmed data incident | < 24 hours |
-| Post-incident review report | Within 5 business days |
-
-### Regulatory compliance
-
-| Regulation | Mechanism |
-|---|---|
-| Singapore PDPA | Class A processed inside native app only; no cross-border transfer of PII; no documaris server receives crew data |
-| Japan APPI | Same local processing; Phase 2 OCR runs a local model — no PII transmitted to any cloud service |
-| GDPR (EU-flagged vessels) | Local processing satisfies data minimisation; no Class A data stored or transmitted |
-
-This policy defines data classification, retention periods, role-based approval gates, audit log contents, and incident response SLAs as implementation requirements — making compliance posture operationally auditable rather than a matter of declaration.
+Data classification (Class A/B/C), PII boundary, access control, human-in-the-loop gates, audit trail schema, incident response SLAs, and regulatory compliance (PDPA / APPI / GDPR) are documented in [ref-compliance-policy.md](ref-compliance-policy.md).
 
 ---
 
 ## Cargo Workspace
 
-The full monorepo lives at `/edgesentry/`. One workspace root makes `edgesentry-audit` available to documaris without publishing:
+> **Design note:** documaris does not yet have a native Rust crate. The workspace layout below describes the intended structure if a native app is adopted at M0. Until then, `edgesentry-audit` is referenced as a git dependency (see Layer 4 above).
+
+If a native app is built, the recommended approach is a git dependency pointing to [`edgesentry-rs`](https://github.com/edgesentry/edgesentry-rs):
+
+```toml
+[dependencies]
+edgesentry-audit = { git = "https://github.com/edgesentry/edgesentry-rs", tag = "v0.1.0" }
+```
+
+Alternatively, a shared workspace root:
 
 ```toml
 # /edgesentry/Cargo.toml
 [workspace]
 members = [
-    "edgesentry-rs/crates/eds",
     "edgesentry-rs/crates/edgesentry-audit",
-    "edgesentry-rs/crates/edgesentry-bridge",
-    "edgesentry-rs/crates/edgesentry-inspect",
     "documaris/crates/documaris-core",
     "documaris/crates/documaris-cli",
 ]

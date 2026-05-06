@@ -46,6 +46,7 @@ nav:
   - Reference:
     - Background: ref-background.md
     - Architecture: ref-architecture.md
+    - Compliance Policy: ref-compliance-policy.md
     - Customers: ref-customers.md
     - PIER71 Evaluation: ref-pier71-evaluation.md
   - Roadmap:
