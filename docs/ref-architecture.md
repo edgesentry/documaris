@@ -137,7 +137,7 @@ Implemented by reusing **`edgesentry-audit`** — the shared Rust crate from [`e
 
 ```toml
 [dependencies]
-edgesentry-audit = { path = "../edgesentry-rs/crates/edgesentry-audit" }
+edgesentry-audit = { git = "https://github.com/edgesentry/edgesentry-rs", tag = "v0.1.0" }
 ```
 
 **Remote audit store — MVP and future:**
@@ -400,16 +400,22 @@ This policy defines data classification, retention periods, role-based approval 
 
 ## Cargo Workspace
 
-The full monorepo lives at `/edgesentry/`. One workspace root makes `edgesentry-audit` available to documaris without publishing:
+> **Design note:** documaris does not yet have a native Rust crate. The workspace layout below describes the intended structure if a native app is adopted at M0. Until then, `edgesentry-audit` is referenced as a git dependency (see Layer 4 above).
+
+If a native app is built, the recommended approach is a git dependency pointing to [`edgesentry-rs`](https://github.com/edgesentry/edgesentry-rs):
+
+```toml
+[dependencies]
+edgesentry-audit = { git = "https://github.com/edgesentry/edgesentry-rs", tag = "v0.1.0" }
+```
+
+Alternatively, a shared workspace root:
 
 ```toml
 # /edgesentry/Cargo.toml
 [workspace]
 members = [
-    "edgesentry-rs/crates/eds",
     "edgesentry-rs/crates/edgesentry-audit",
-    "edgesentry-rs/crates/edgesentry-bridge",
-    "edgesentry-rs/crates/edgesentry-inspect",
     "documaris/crates/documaris-core",
     "documaris/crates/documaris-cli",
 ]
