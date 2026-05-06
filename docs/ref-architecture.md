@@ -263,7 +263,8 @@ flowchart TD
 ## OCR / Reverse Ingestion (Phase 2 — post-PIER71 roadmap)
 
 ```
-smartphone photo (JPEG)
+image input (JPEG / PNG / PDF scan)
+  — smartphone photo, flatbed scanner, MFP scan-to-email, digital camera
     │
     ▼ vision-capable AI model (local, multimodal — model TBD)
       "Extract fields from this Japanese maritime form. Return structured JSON."
