@@ -121,7 +121,7 @@ All prompts request structured JSON output with a `confidence` field. Low-confid
 
 ## Layer 4 — Trust Layer
 
-Implemented by reusing **`edgesentry-audit`** — the shared Rust crate from `edgesentry-rs` (`blake3 = "1.5"`, `ed25519-dalek = "2.1"`). No new crypto code is written in documaris.
+Implemented by reusing **`edgesentry-audit`** — the shared Rust crate from [`edgesentry-rs`](https://github.com/edgesentry/edgesentry-rs) (`blake3 = "1.5"`, `ed25519-dalek = "2.1"`). No new crypto code is written in documaris.
 
 ```toml
 [dependencies]
