@@ -47,6 +47,7 @@ Maritime document generation and compliance automation platform. documaris produ
 - TypeScript strict mode (`tsconfig.json`)
 - No unused locals or parameters
 - Python: `uv run` for all commands; pytest for schema/contract tests
+- Docs: use Mermaid for diagrams — see [CONTRIBUTING.md](CONTRIBUTING.md#diagrams)
 
 ## Commit convention
 
