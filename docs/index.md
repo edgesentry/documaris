@@ -18,6 +18,6 @@ documaris consumes structured vessel, voyage, and cargo data from the [indago](h
 |---|---|
 | [indago](https://github.com/edgesentry/indago) | Data layer — vessel/voyage/cargo/AIS ingestion and transformation |
 | [arktrace](https://github.com/edgesentry/arktrace) | Shadow fleet detection — reads indago data; causal inference scoring |
-| **documaris** | Document layer — port call package generation, compliance checking |
+| [documaris](https://github.com/edgesentry/documaris) | Document layer — port call package generation, compliance checking |
 | [clarus](https://github.com/edgesentry/clarus) | Vessel risk intelligence — same vessel entity, `?mmsi=` deep-link |
 | [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) | Physical layer — audit chain (BLAKE3 + Ed25519) |
