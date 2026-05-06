@@ -103,6 +103,18 @@ pub trait LlmProvider: Send + Sync {
 Swapping local vs. cloud, or native app vs. server, is a `config.toml` change; no code change required.
 
 > **⚠ Implementation under review:** The specific model selection (local open-source model vs. cloud API) and delivery mechanism (native app vs. web app) are being evaluated. Options under consideration include distributing a permissively licensed (Apache 2.0 / MIT) model with the application to eliminate cloud API costs and network dependencies. Model names and provider details will be specified once the architecture decision is finalised.
+>
+> **Apache 2.0 / MIT compatible model candidates:**
+>
+> | Model | Licence | Size | Notes |
+> |-------|---------|------|-------|
+> | [Llama 3.2 3B Instruct](https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct) | Llama 3.2 Community (≈Apache 2.0 for <700M MAU) | 3B | Good instruction following; runs on CPU via llama.cpp / MLX; already used in clarus explain step |
+> | [Qwen 2.5 3B Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct) | Apache 2.0 | 3B | Strong multilingual (EN/JA/ZH); relevant for Japan NACCS Phase 2 |
+> | [Qwen 2.5 7B Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) | Apache 2.0 | 7B | Higher accuracy for llm_summarise / llm_translate fields; requires ~6 GB RAM |
+> | [Mistral 7B Instruct v0.3](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3) | Apache 2.0 | 7B | Strong instruction following; well-tested with llama.cpp GGUF; European regulatory text |
+> | [Phi-3.5 Mini Instruct](https://huggingface.co/microsoft/Phi-3.5-mini-instruct) | MIT | 3.8B | Compact; runs efficiently on CPU; good for short structured-output tasks (field inference) |
+>
+> Selection criteria: the chosen model must handle `llm_summarise`, `llm_translate` (EN/JA minimum), and `llm_infer` field types at acceptable quality. Offline-first constraint favours 3B–7B GGUF models runnable via llama.cpp with no GPU requirement.
 
 **Capability requirements (delivery-mechanism-independent):**
 
