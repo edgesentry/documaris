@@ -200,7 +200,7 @@ describe("BC1 — compliant outlet", () => {
   });
 
   it("renders HTML containing building name", () => {
-    expect(result.html).toContain("Meridian Community Hub");
+    expect(result.html).toContain("Acme Facilities");
   });
 
   it("seals AuditRecord with 64-char lowercase hex BLAKE3 hash", () => {

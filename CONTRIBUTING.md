@@ -75,6 +75,7 @@ cd app && npm run dev
    cd app && npm run build
    cd .. && wrangler pages dev app/dist --r2 DOCUMARIS_DEV_PUBLIC_ANALYTICS=documaris-dev-public-analytics
    # → http://localhost:8788
+   # → http://localhost:8788
    ```
 
 The `--r2` flag is required because `wrangler pages dev` does not auto-read R2 bindings from `wrangler.toml` in local mode.

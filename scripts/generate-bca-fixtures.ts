@@ -20,7 +20,7 @@ import { resolve } from "path";
 
 const OUT_FILE = resolve(import.meta.dirname, "bca_outlet_features.parquet");
 const R2_BUCKET = "documaris-dev-public-analytics";
-const R2_KEY = "bca_outlet_features.parquet";
+const R2_KEY = "bca/bca_outlet_features.parquet";
 
 // ── Synthetic outlet definitions ──────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ function generateOutlets(): Outlet[] {
   for (let i = 0; i < OUTLET_NAMES.length; i++) {
     const idx = String(i + 1).padStart(3, "0");
     const outletId = `MCH-OUTLET-${idx}`;
-    const name = `Meridian Community Hub — ${OUTLET_NAMES[i]}`;
+    const name = `Acme Facilities — ${OUTLET_NAMES[i]}`;
 
     // Randomise metrics with realistic variance around the Platinum threshold.
     // ~60% of outlets are compliant (below threshold), ~40% have issues.

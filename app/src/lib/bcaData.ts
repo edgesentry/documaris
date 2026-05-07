@@ -2,7 +2,7 @@ import * as duckdb from "@duckdb/duckdb-wasm";
 import type { BcaScenario } from "./fixtures.js";
 
 const DOCUMARIS_BCA_PARQUET_URL =
-  "https://documaris.edgesentry.io/data/analytics/bca_outlet_features.parquet";
+  "https://documaris.edgesentry.io/data/analytics/bca/bca_outlet_features.parquet";
 
 export const DOCUMARIS_URL = "https://documaris.edgesentry.io";
 
