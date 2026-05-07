@@ -75,6 +75,19 @@ body {
 
 .risk-score { font-size: 11px; font-weight: 600; color: var(--warn); background: rgba(245,158,11,0.12); padding: 2px 7px; border-radius: 4px; }
 
+/* ── Mode tabs ── */
+.mode-tabs {
+  display: flex; gap: 4px; padding: 12px 24px; border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.mode-tabs button {
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.mode-tabs button:hover { border-color: var(--accent); color: var(--text); }
+.mode-tabs button.active { border-color: var(--accent); color: var(--accent); background: rgba(74,158,255,0.08); font-weight: 600; }
+
 /* ── Loading ── */
 .loading {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

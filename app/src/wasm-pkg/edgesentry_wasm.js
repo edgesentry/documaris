@@ -124,6 +124,68 @@ export function fill(entity_json, template, confidence_threshold) {
 }
 
 /**
+ * Fill a BCA Green Mark Section 4 form from a BcaOutletEntity JSON object.
+ *
+ * `entity_json`: single BcaOutletEntity (one element from `parse_bca_csv` output)
+ * `confidence_threshold`: fields below this score are flagged (0.0–1.0, default 0.80)
+ *
+ * Returns: FilledDocument JSON string with template "sg-bca-greenmark", or throws on error.
+ * @param {string} entity_json
+ * @param {number} confidence_threshold
+ * @returns {string}
+ */
+export function fill_bca(entity_json, confidence_threshold) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(entity_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.fill_bca(ptr0, len0, confidence_threshold);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Parse a BCA Green Mark outlet CSV string into a JSON array of BcaOutletEntity objects.
+ *
+ * Input: CSV text with header:
+ * outlet_id,building_name,building_type,period_start,period_end,gross_floor_area_m2,eui_kwh_m2,chiller_cop,lpd_w_m2,water_l_m2,green_mark_target,certifying_body
+ * Returns: JSON array string, or throws on parse error.
+ * @param {string} csv
+ * @returns {string}
+ */
+export function parse_bca_csv(csv) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(csv, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.parse_bca_csv(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Parse a maritime voyage CSV string into a JSON array of DocumentEntity objects.
  *
  * Input: CSV text (same format as `crates/edgesentry-document/fixtures/*.csv`)

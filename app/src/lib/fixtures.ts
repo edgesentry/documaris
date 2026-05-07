@@ -51,6 +51,53 @@ export const SCENARIOS: Scenario[] = [
   },
 ];
 
+export interface BcaScenario {
+  id: "BC1" | "BC2" | "BC3";
+  label: string;
+  buildingName: string;
+  outletId: string;
+  description: string;
+  expectReviewRequired: boolean;
+  expectedAlerts: number;
+  csv: string;
+}
+
+const BCA_HEADER =
+  "outlet_id,building_name,building_type,period_start,period_end,gross_floor_area_m2,eui_kwh_m2,chiller_cop,lpd_w_m2,water_l_m2,green_mark_target,certifying_body";
+
+export const BCA_SCENARIOS: BcaScenario[] = [
+  {
+    id: "BC1",
+    label: "Compliant outlet",
+    buildingName: "Singapore Pools — Tampines Hub",
+    outletId: "SP-OUTLET-042",
+    description: "All Section 4 fields present. 0 alerts expected.",
+    expectReviewRequired: false,
+    expectedAlerts: 0,
+    csv: `${BCA_HEADER}\nSP-OUTLET-042,Singapore Pools Tampines Hub,Retail,2025-01-01,2025-12-31,3200,108.5,0.61,13.2,380.0,Platinum,BCA`,
+  },
+  {
+    id: "BC2",
+    label: "EUI data missing",
+    buildingName: "Singapore Pools — Woodlands CC",
+    outletId: "SP-OUTLET-017",
+    description: "EUI not recorded. EUI_DATA_PRESENT alert expected.",
+    expectReviewRequired: true,
+    expectedAlerts: 1,
+    csv: `${BCA_HEADER}\nSP-OUTLET-017,Singapore Pools Woodlands CC,Retail,2025-01-01,2025-12-31,2800,,0.63,14.1,395.0,Platinum,BCA`,
+  },
+  {
+    id: "BC3",
+    label: "Audit period missing",
+    buildingName: "Singapore Pools — Jurong West",
+    outletId: "SP-OUTLET-033",
+    description: "Period dates not set. Two MEDIUM alerts expected.",
+    expectReviewRequired: true,
+    expectedAlerts: 2,
+    csv: `${BCA_HEADER}\nSP-OUTLET-033,Singapore Pools Jurong West,Retail,,,2950,112.0,0.64,14.8,402.0,Gold+,BCA`,
+  },
+];
+
 export const SG_PORT_COMPLIANCE_RULES = JSON.stringify([
   {
     rule_id: "BWM_D2_EXPIRED",
