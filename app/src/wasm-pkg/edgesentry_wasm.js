@@ -173,7 +173,7 @@ export function parse_bca_csv(csv) {
         var ptr2 = ret[0];
         var len2 = ret[1];
         if (ret[3]) {
-            ptr2 = 0; len2 = 0;
+            len2 = 0;
             throw takeFromExternrefTable0(ret[2]);
         }
         deferred3_0 = ptr2;
