@@ -1,9 +1,9 @@
 # documaris — Architecture
 
-- **Date:** 2026-04-26 (updated from 2026-04-24)
-- **Status:** Core design defined; R2 schema contract and PII boundary pending sign-off
-- **Delivery:** Native desktop app (macOS / Windows / Linux); local open-source AI model (Apache 2.0 / MIT, model TBD)
-- **Key invariants:** vessel/voyage/cargo data pulled from documaris R2 bucket (indago copies into it); crew PII supplied by user locally; only BLAKE3 hash transits the network
+- **Date:** 2026-05-07 (updated from 2026-04-26)
+- **Status:** Maritime pipeline live (PIER71); BCA Green Mark profile live (BEAMP demo)
+- **Delivery:** Web app (Cloudflare Pages) with DuckDB WASM; future: native desktop with local LLM
+- **Key invariants:** data pulled from R2; only BLAKE3 hash transits the network for PII fields; `check()` / `build_audit_payload()` / `seal()` are profile-agnostic
 
 ---
 
@@ -28,6 +28,28 @@ flowchart TD
     pipeline -->|"AuditRecord\n(no PII, no raw content)"| local_log
     local_log -.->|"edgesentry-audit store-and-forward\nqueued if offline"| remote_store
 ```
+
+---
+
+## Multi-profile architecture
+
+The pipeline core (`check`, `build_audit_payload`, `seal`) is profile-agnostic. Profiles differ only in parser, fill function, HTML template, and rules JSON.
+
+| Profile | Sector | Parser | Template | Rules | Programme |
+|---|---|---|---|---|---|
+| `fal-form-1` | Maritime port call | `parse_maritime_csv` | `fal-form-1.html` | `sg-port-compliance/rules.json` | PIER71 |
+| `sg-bca-greenmark` | Built environment | `parse_bca_csv` | `sg-bca-greenmark.html` | `sg-bca-greenmark/rules.json` | BEAMP |
+
+Adding a new profile = new parser + HTML template + rules JSON in `edgesentry-rs`, new `run*Pipeline()` in `pipeline.ts`, new data source in `*Data.ts`. No changes to `check()`, `build_audit_payload()`, or `seal()`.
+
+### Compliance check types
+
+| Check | Fires when | Example |
+|---|---|---|
+| `not_null` | Field is missing or empty | crew_count not provided |
+| `not_expired` | Date field is in the past | BWM certificate expired |
+| `not_true` | Boolean field is `true` | dangerous goods declared |
+| `above_threshold` | Numeric field exceeds threshold value | EUI 122 > 115 kWh/m²/year |
 
 ---
 

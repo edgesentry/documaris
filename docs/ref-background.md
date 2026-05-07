@@ -122,6 +122,7 @@ Internationally standardised forms are free; highly localised, port-specific for
 | **documaris** (MVP target) | **Yes** — local processing path for FAL Form 5; operates without server connection | **Yes** — BLAKE3 hash + Ed25519 embedded in PDF XMP; `GET /audit/verify?hash=` | **Yes** — Regulatory Alert HIGH/MEDIUM/LOW; HIGH blocks export, override not permitted | 2026-04-26 |
 
 **Notes:**
+
 - Platform categories are representative of the tools ship agents use today for port call administration. Specific product names are available on request.
 - "Not stated in public docs" means no explicit claim was found in publicly available documentation at the check date. It does not assert the capability is absent.
 - If deeper documentation for any platform contradicts the above, the relevant cell will be updated and the check date refreshed.

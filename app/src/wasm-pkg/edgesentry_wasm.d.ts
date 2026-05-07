@@ -40,6 +40,25 @@ export function compute_hash(data: Uint8Array): string;
 export function fill(entity_json: string, template: string, confidence_threshold: number): string;
 
 /**
+ * Fill a BCA Green Mark Section 4 form from a BcaOutletEntity JSON object.
+ *
+ * `entity_json`: single BcaOutletEntity (one element from `parse_bca_csv` output)
+ * `confidence_threshold`: fields below this score are flagged (0.0–1.0, default 0.80)
+ *
+ * Returns: FilledDocument JSON string with template "sg-bca-greenmark", or throws on error.
+ */
+export function fill_bca(entity_json: string, confidence_threshold: number): string;
+
+/**
+ * Parse a BCA Green Mark outlet CSV string into a JSON array of BcaOutletEntity objects.
+ *
+ * Input: CSV text with header:
+ * outlet_id,building_name,building_type,period_start,period_end,gross_floor_area_m2,eui_kwh_m2,chiller_cop,lpd_w_m2,water_l_m2,green_mark_target,certifying_body
+ * Returns: JSON array string, or throws on parse error.
+ */
+export function parse_bca_csv(csv: string): string;
+
+/**
  * Parse a maritime voyage CSV string into a JSON array of DocumentEntity objects.
  *
  * Input: CSV text (same format as `crates/edgesentry-document/fixtures/*.csv`)
@@ -76,6 +95,8 @@ export interface InitOutput {
     readonly check: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly compute_hash: (a: number, b: number) => [number, number];
     readonly fill: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
+    readonly fill_bca: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly parse_bca_csv: (a: number, b: number) => [number, number, number, number];
     readonly parse_maritime_csv: (a: number, b: number) => [number, number, number, number];
     readonly render_html: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly seal: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];

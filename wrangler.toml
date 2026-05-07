@@ -1,3 +1,8 @@
 name                   = "documaris"
 pages_build_output_dir = "app/dist"
 compatibility_date     = "2025-01-01"
+
+# BCA Green Mark outlet features — read by documaris BCA mode
+[[r2_buckets]]
+binding = "DOCUMARIS_DEV_PUBLIC_ANALYTICS"
+bucket_name = "documaris-dev-public-analytics"

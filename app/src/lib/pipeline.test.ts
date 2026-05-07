@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { initPipeline, runPipeline } from "./pipeline.js";
-import { SCENARIOS, SG_PORT_COMPLIANCE_RULES } from "./fixtures.js";
+import { initPipeline, runPipeline, runBcaPipeline, BCA_GREEN_MARK_RULES } from "./pipeline.js";
+import { SCENARIOS, SG_PORT_COMPLIANCE_RULES, BCA_SCENARIOS } from "./fixtures.js";
 
 // In Node (vitest), init() tries to fetch() the .wasm file — which isn't
 // available. Pass the raw bytes from disk instead so tests run without a browser.
@@ -149,5 +149,197 @@ describe("audit record", () => {
   it("sequence is 1", async () => {
     const r = await runPipeline(SCENARIOS[0].csv);
     expect(r.auditRecord.sequence).toBe(1);
+  });
+});
+
+// ── BCA fixtures ──────────────────────────────────────────────────────────────
+
+describe("BCA fixtures", () => {
+  it("has three scenarios with distinct IDs", () => {
+    const ids = BCA_SCENARIOS.map((s) => s.id);
+    expect(ids).toEqual(["BC1", "BC2", "BC3"]);
+  });
+
+  it("each scenario CSV has a header and one data row", () => {
+    for (const s of BCA_SCENARIOS) {
+      const lines = s.csv.trim().split("\n");
+      expect(lines).toHaveLength(2);
+      expect(lines[0]).toContain("outlet_id");
+    }
+  });
+
+  it("BCA rules JSON is valid and has eight rules", () => {
+    const rules = JSON.parse(BCA_GREEN_MARK_RULES) as unknown[];
+    expect(rules).toHaveLength(8);
+  });
+});
+
+// ── BC1 — compliant outlet ────────────────────────────────────────────────────
+
+describe("BC1 — compliant outlet", () => {
+  let result: Awaited<ReturnType<typeof runBcaPipeline>>;
+
+  beforeAll(async () => {
+    result = await runBcaPipeline(BCA_SCENARIOS[0].csv);
+  });
+
+  it("parses outlet_id MCH-OUTLET-042", () => {
+    expect(result.filled.voyage_id).toBe("MCH-OUTLET-042");
+  });
+
+  it("template is sg-bca-greenmark", () => {
+    expect(result.filled.template).toBe("sg-bca-greenmark");
+  });
+
+  it("review_required is false", () => {
+    expect(result.filled.review_required).toBe(false);
+  });
+
+  it("produces 0 compliance alerts", () => {
+    expect(result.alerts).toHaveLength(0);
+  });
+
+  it("renders HTML containing building name", () => {
+    expect(result.html).toContain("Acme Facilities");
+  });
+
+  it("seals AuditRecord with 64-char lowercase hex BLAKE3 hash", () => {
+    expect(result.payloadHash).toHaveLength(64);
+    expect(result.payloadHash).toMatch(/^[0-9a-f]+$/);
+  });
+});
+
+// ── BC2 — EUI data missing ────────────────────────────────────────────────────
+
+describe("BC2 — EUI data missing", () => {
+  let result: Awaited<ReturnType<typeof runBcaPipeline>>;
+
+  beforeAll(async () => {
+    result = await runBcaPipeline(BCA_SCENARIOS[1].csv);
+  });
+
+  it("sets review_required to true", () => {
+    expect(result.filled.review_required).toBe(true);
+  });
+
+  it("fires EUI_DATA_PRESENT alert with severity HIGH", () => {
+    const alert = result.alerts.find((a) => a.rule_id === "EUI_DATA_PRESENT");
+    expect(alert).toBeDefined();
+    expect(alert!.severity).toBe("HIGH");
+  });
+
+  it("alert cites BCA Green Mark 2021 regulation", () => {
+    const alert = result.alerts.find((a) => a.rule_id === "EUI_DATA_PRESENT")!;
+    expect(alert.regulation).toContain("BCA Green Mark 2021");
+  });
+
+  it("still seals an AuditRecord", () => {
+    expect(result.payloadHash).toHaveLength(64);
+  });
+});
+
+// ── BC3 — audit period missing ────────────────────────────────────────────────
+
+describe("BC3 — audit period missing", () => {
+  let result: Awaited<ReturnType<typeof runBcaPipeline>>;
+
+  beforeAll(async () => {
+    result = await runBcaPipeline(BCA_SCENARIOS[2].csv);
+  });
+
+  it("fires AUDIT_PERIOD_START_PRESENT and AUDIT_PERIOD_END_PRESENT", () => {
+    const ids = result.alerts.map((a) => a.rule_id);
+    expect(ids).toContain("AUDIT_PERIOD_START_PRESENT");
+    expect(ids).toContain("AUDIT_PERIOD_END_PRESENT");
+  });
+
+  it("both period alerts have severity MEDIUM", () => {
+    const periodAlerts = result.alerts.filter((a) =>
+      a.rule_id.startsWith("AUDIT_PERIOD_")
+    );
+    expect(periodAlerts.every((a) => a.severity === "MEDIUM")).toBe(true);
+  });
+});
+
+// ── BC4 — above_threshold compliance (EUI/COP/LPD exceeded) ──────────────────
+
+describe("BC4 — above_threshold compliance alerts", () => {
+  const BCA_HEADER = "outlet_id,building_name,building_type,period_start,period_end,gross_floor_area_m2,eui_kwh_m2,chiller_cop,lpd_w_m2,water_l_m2,green_mark_target,certifying_body";
+
+  it("fires EUI_PLATINUM_EXCEEDED when EUI > 115", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-001,Test Building,Retail,2025-01-01,2025-12-31,3000,122.5,0.61,13.0,380.0,Gold+,BCA`;
+    const result = await runBcaPipeline(csv);
+    const alert = result.alerts.find((a) => a.rule_id === "EUI_PLATINUM_EXCEEDED");
+    expect(alert).toBeDefined();
+    expect(alert!.severity).toBe("HIGH");
+    expect(alert!.message).toContain("122.5");
+    expect(alert!.message).toContain("115");
+  });
+
+  it("does not fire EUI_PLATINUM_EXCEEDED when EUI ≤ 115", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-002,Test Building,Retail,2025-01-01,2025-12-31,3000,108.0,0.61,13.0,380.0,Platinum,BCA`;
+    const result = await runBcaPipeline(csv);
+    expect(result.alerts.find((a) => a.rule_id === "EUI_PLATINUM_EXCEEDED")).toBeUndefined();
+  });
+
+  it("fires CHILLER_COP_EXCEEDED when COP > 0.65", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-003,Test Building,Retail,2025-01-01,2025-12-31,3000,110.0,0.72,13.0,380.0,Gold+,BCA`;
+    const result = await runBcaPipeline(csv);
+    const alert = result.alerts.find((a) => a.rule_id === "CHILLER_COP_EXCEEDED");
+    expect(alert).toBeDefined();
+    expect(alert!.message).toContain("0.72");
+  });
+
+  it("fires LPD_PLATINUM_EXCEEDED when LPD > 15", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-004,Test Building,Retail,2025-01-01,2025-12-31,3000,110.0,0.61,16.5,380.0,Gold+,BCA`;
+    const result = await runBcaPipeline(csv);
+    const alert = result.alerts.find((a) => a.rule_id === "LPD_PLATINUM_EXCEEDED");
+    expect(alert).toBeDefined();
+    expect(alert!.message).toContain("16.5");
+  });
+
+  it("sets review_required when HIGH threshold alert fires", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-005,Test Building,Retail,2025-01-01,2025-12-31,3000,130.0,0.80,18.0,380.0,Gold,BCA`;
+    const result = await runBcaPipeline(csv);
+    expect(result.filled.review_required).toBe(true);
+    expect(result.alerts.filter((a) => a.severity === "HIGH").length).toBeGreaterThan(0);
+  });
+
+  it("compliant outlet has 0 threshold alerts and review_required false", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-006,Test Building,Retail,2025-01-01,2025-12-31,3000,108.0,0.61,13.0,380.0,Platinum,BCA`;
+    const result = await runBcaPipeline(csv);
+    const thresholdAlerts = result.alerts.filter((a) => a.rule_id.endsWith("_EXCEEDED"));
+    expect(thresholdAlerts).toHaveLength(0);
+    expect(result.filled.review_required).toBe(false);
+  });
+});
+
+// ── architectural proof: shared audit chain ───────────────────────────────────
+
+describe("architectural proof — shared audit chain", () => {
+  it("BCA and maritime AuditRecord have identical structure", async () => {
+    const maritime = await runPipeline(SCENARIOS[0].csv);
+    const bca = await runBcaPipeline(BCA_SCENARIOS[0].csv);
+    expect(Object.keys(maritime.auditRecord).sort()).toEqual(
+      Object.keys(bca.auditRecord).sort()
+    );
+  });
+
+  it("both pipelines use the same device_id", async () => {
+    const maritime = await runPipeline(SCENARIOS[0].csv);
+    const bca = await runBcaPipeline(BCA_SCENARIOS[0].csv);
+    expect(maritime.auditRecord.device_id).toBe(bca.auditRecord.device_id);
+  });
+
+  it("BCA hash is deterministic across runs", async () => {
+    const r1 = await runBcaPipeline(BCA_SCENARIOS[0].csv);
+    const r2 = await runBcaPipeline(BCA_SCENARIOS[0].csv);
+    expect(r1.payloadHash).toBe(r2.payloadHash);
+  });
+
+  it("maritime and BCA hashes differ (different data, different template)", async () => {
+    const maritime = await runPipeline(SCENARIOS[0].csv);
+    const bca = await runBcaPipeline(BCA_SCENARIOS[0].csv);
+    expect(maritime.payloadHash).not.toBe(bca.payloadHash);
   });
 });

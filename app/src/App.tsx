@@ -3,9 +3,19 @@ import { VoyageSelector } from "./components/VoyageSelector.js";
 import { AlertList } from "./components/AlertList.js";
 import { AuditPanel } from "./components/AuditPanel.js";
 import { FieldAnalysis } from "./components/FieldAnalysis.js";
+import { PortfolioView } from "./components/PortfolioView.js";
+import { OperatorView } from "./components/OperatorView.js";
 import { runPipeline, runBcaPipeline, type PipelineResult, type BcaPipelineResult } from "./lib/pipeline.js";
-import { SCENARIOS, BCA_SCENARIOS, type Scenario, type BcaScenario } from "./lib/fixtures.js";
+import { SCENARIOS, type Scenario } from "./lib/fixtures.js";
 import { loadClarusScenarios, loadClarusScenarioByMmsi } from "./lib/clarusData.js";
+import {
+  loadPortfolio,
+  loadOperatorSites,
+  siteSummaryToBcaScenario,
+  type OperatorSummary,
+  type SiteSummary,
+} from "./lib/bcaData.js";
+import type { BcaScenario } from "./lib/fixtures.js";
 
 type Phase =
   | { tag: "select"; scenarios: Scenario[]; loadingClarus: boolean }
@@ -14,10 +24,11 @@ type Phase =
   | { tag: "error"; message: string; scenarios: Scenario[] };
 
 type BcaPhase =
-  | { tag: "select" }
-  | { tag: "generating"; scenario: BcaScenario }
-  | { tag: "result"; scenario: BcaScenario; result: BcaPipelineResult }
-  | { tag: "error"; message: string };
+  | { tag: "portfolio"; operators: OperatorSummary[]; loading: boolean }
+  | { tag: "operator"; operator: OperatorSummary; sites: SiteSummary[]; loading: boolean }
+  | { tag: "generating"; site: SiteSummary }
+  | { tag: "result"; site: SiteSummary; result: BcaPipelineResult }
+  | { tag: "error"; message: string; back: "portfolio" | "operator"; operator?: OperatorSummary };
 
 export default function App() {
   const [mode, setMode] = useState<"maritime" | "bca">("maritime");
@@ -26,7 +37,18 @@ export default function App() {
     scenarios: SCENARIOS,
     loadingClarus: true,
   });
-  const [bcaPhase, setBcaPhase] = useState<BcaPhase>({ tag: "select" });
+  const [bcaPhase, setBcaPhase] = useState<BcaPhase>({ tag: "portfolio", operators: [], loading: true });
+
+  // Load portfolio on mount (and whenever BCA tab is first activated)
+  useEffect(() => {
+    loadPortfolio()
+      .then((operators) => {
+        setBcaPhase({ tag: "portfolio", operators, loading: false });
+      })
+      .catch(() => {
+        setBcaPhase({ tag: "portfolio", operators: [], loading: false });
+      });
+  }, []);
 
   // Load live vessel data from clarus; auto-select if ?mmsi= param is present.
   useEffect(() => {
@@ -42,9 +64,6 @@ export default function App() {
       }
     }
 
-    // Load the 3 selector scenarios in parallel with the MMSI lookup (if any).
-    // If a specific MMSI is requested, query the Parquet for that vessel directly
-    // rather than relying on it being in the pre-selected top-3.
     const scenariosPromise = loadClarusScenarios();
     const mmsiPromise = paramMmsi ? loadClarusScenarioByMmsi(paramMmsi) : Promise.resolve(null);
 
@@ -72,13 +91,24 @@ export default function App() {
     }
   }, []);
 
-  const handleBcaSelect = useCallback(async (scenario: BcaScenario) => {
-    setBcaPhase({ tag: "generating", scenario });
+  const handleOperatorSelect = useCallback(async (operator: OperatorSummary) => {
+    setBcaPhase({ tag: "operator", operator, sites: [], loading: true });
     try {
-      const result = await runBcaPipeline(scenario.csv);
-      setBcaPhase({ tag: "result", scenario, result });
+      const sites = await loadOperatorSites(operator.operator_id);
+      setBcaPhase({ tag: "operator", operator, sites, loading: false });
     } catch (e) {
-      setBcaPhase({ tag: "error", message: String(e) });
+      setBcaPhase({ tag: "error", message: String(e), back: "portfolio" });
+    }
+  }, []);
+
+  const handleSiteSelect = useCallback(async (site: SiteSummary, operator: OperatorSummary) => {
+    setBcaPhase({ tag: "generating", site });
+    try {
+      const scenario: BcaScenario = siteSummaryToBcaScenario(site);
+      const result = await runBcaPipeline(scenario.csv);
+      setBcaPhase({ tag: "result", site, result });
+    } catch (e) {
+      setBcaPhase({ tag: "error", message: String(e), back: "operator", operator });
     }
   }, []);
 
@@ -102,30 +132,33 @@ export default function App() {
   // ── BCA mode ────────────────────────────────────────────────────────────────
 
   if (mode === "bca") {
-    if (bcaPhase.tag === "select") {
+    if (bcaPhase.tag === "portfolio") {
       return (
-        <div className="selector">
+        <div>
           {modeTabs}
-          <div className="selector-header">
-            <h1>documaris</h1>
-            <p className="subtitle">BCA Green Mark — Section 4 Energy Efficiency</p>
-          </div>
-          <div className="cards">
-            {BCA_SCENARIOS.map((s) => (
-              <button key={s.id} className="card" onClick={() => handleBcaSelect(s)}>
-                <div className="card-top">
-                  <span className="scenario-id">{s.id}</span>
-                  <span className={`badge ${s.expectedAlerts === 0 ? "badge-ok" : "badge-warn"}`}>
-                    {s.expectedAlerts === 0 ? "0 alerts" : `${s.expectedAlerts} alert${s.expectedAlerts > 1 ? "s" : ""}`}
-                  </span>
-                </div>
-                <div className="vessel-name">{s.buildingName}</div>
-                <div className="vessel-imo">{s.outletId}</div>
-                <p className="card-desc">{s.description}</p>
-                <div className="card-cta">Generate BCA Green Mark Section 4 →</div>
-              </button>
-            ))}
-          </div>
+          <PortfolioView
+            operators={bcaPhase.operators}
+            loading={bcaPhase.loading}
+            onSelect={handleOperatorSelect}
+          />
+        </div>
+      );
+    }
+
+    if (bcaPhase.tag === "operator") {
+      return (
+        <div>
+          {modeTabs}
+          <OperatorView
+            operator={bcaPhase.operator}
+            sites={bcaPhase.sites}
+            loading={bcaPhase.loading}
+            onSelectSite={(site) => handleSiteSelect(site, bcaPhase.operator)}
+            onBack={() => loadPortfolio()
+              .then((operators) => setBcaPhase({ tag: "portfolio", operators, loading: false }))
+              .catch(() => setBcaPhase({ tag: "portfolio", operators: [], loading: false }))
+            }
+          />
         </div>
       );
     }
@@ -135,26 +168,39 @@ export default function App() {
         <div className="loading">
           {modeTabs}
           <div className="spinner" />
-          <p>Generating BCA Green Mark Section 4 for <strong>{bcaPhase.scenario.buildingName}</strong>…</p>
+          <p>Generating BCA Green Mark Section 4 for <strong>{bcaPhase.site.building_name}</strong>…</p>
           <p className="loading-sub">Parsing → filling fields → compliance check → sealing AuditRecord</p>
         </div>
       );
     }
 
     if (bcaPhase.tag === "error") {
+      const goBack = () => {
+        if (bcaPhase.back === "operator" && bcaPhase.operator) {
+          loadOperatorSites(bcaPhase.operator.operator_id)
+            .then((sites) => setBcaPhase({ tag: "operator", operator: bcaPhase.operator!, sites, loading: false }))
+            .catch(() => setBcaPhase({ tag: "operator", operator: bcaPhase.operator!, sites: [], loading: false }));
+        } else {
+          loadPortfolio()
+            .then((operators) => setBcaPhase({ tag: "portfolio", operators, loading: false }))
+            .catch(() => setBcaPhase({ tag: "portfolio", operators: [], loading: false }));
+        }
+      };
+
       return (
         <div className="error-screen">
           {modeTabs}
           <h2>Pipeline error</h2>
           <pre>{bcaPhase.message}</pre>
-          <button onClick={() => setBcaPhase({ tag: "select" })}>
+          <button onClick={goBack}>
             ← Back
           </button>
         </div>
       );
     }
 
-    const { scenario: bcaScenario, result: bcaResult } = bcaPhase;
+    // bcaPhase.tag === "result"
+    const { site: bcaSite, result: bcaResult } = bcaPhase;
 
     return (
       <div className="result">
@@ -162,14 +208,18 @@ export default function App() {
         <header className="result-header">
           <button
             className="back-btn"
-            onClick={() => setBcaPhase({ tag: "select" })}
+            onClick={() =>
+              loadPortfolio()
+                .then((operators) => setBcaPhase({ tag: "portfolio", operators, loading: false }))
+                .catch(() => setBcaPhase({ tag: "portfolio", operators: [], loading: false }))
+            }
           >
-            ← Back
+            ← Portfolio
           </button>
           <div className="result-title">
-            <span className="scenario-chip">{bcaScenario.id}</span>
-            <span>{bcaScenario.buildingName}</span>
-            <span className="imo">{bcaScenario.outletId}</span>
+            <span className="scenario-chip">{bcaSite.outlet_id}</span>
+            <span>{bcaSite.building_name}</span>
+            <span className="imo">{bcaSite.operator_name}</span>
           </div>
           <button className="pdf-btn" onClick={() => window.print()}>
             ⬇ Download PDF
