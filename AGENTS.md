@@ -9,7 +9,7 @@ Maritime document generation and compliance automation platform. documaris produ
 | [indago](https://github.com/edgesentry/indago) | Data layer | Writes vessel/voyage/cargo Parquet to documaris R2 bucket — documaris reads from it |
 | [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) | Audit chain | Trust Layer reuses `edgesentry-audit` crate (BLAKE3 + Ed25519) |
 | [arktrace](https://github.com/edgesentry/arktrace) | Shadow fleet detection | Shares the same vessel entity (MMSI); documaris closes the compliance loop |
-| [clarus](https://github.com/edgesentry/clarus) | Physical port safety monitoring | Sister product — `?mmsi=` deep-link cross-navigation |
+| [clarus](https://github.com/edgesentry/clarus) | Profile-switchable safety monitoring | Sister product — `?mmsi=` deep-link cross-navigation |
 
 ## Directory map
 
