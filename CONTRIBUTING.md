@@ -55,6 +55,32 @@ flowchart TD
 
 Before adding a procedure to `docs/`, create a Skill instead. Only reference material (facts, schemas, design decisions) goes in `docs/`.
 
+## Local development
+
+### Maritime mode (Vite only)
+
+```bash
+cd app && npm run dev
+# → http://localhost:5173
+```
+
+### BCA mode with live R2 data (wrangler pages dev)
+
+1. Upload fixtures to local R2:
+   ```bash
+   cd scripts && npm run generate-bca:local
+   ```
+2. Build and serve with Pages Functions:
+   ```bash
+   cd app && npm run build
+   cd .. && wrangler pages dev app/dist --r2 DOCUMARIS_DEV_PUBLIC_ANALYTICS=documaris-dev-public-analytics
+   # → http://localhost:8788
+   ```
+
+The `--r2` flag is required because `wrangler pages dev` does not auto-read R2 bindings from `wrangler.toml` in local mode.
+
+---
+
 ## Field maps
 
 Field maps in `field_maps/` are the source of truth for form-to-data mapping. After any change, run `uv run pytest tests/` to verify contracts.

@@ -177,8 +177,10 @@ async function main() {
 
   // Upload to R2 via wrangler
   console.log(`Uploading to R2: ${R2_BUCKET}/${R2_KEY}`);
+  const local = process.argv.includes("--local");
+  const remoteFlag = local ? "" : "--remote";
   execSync(
-    `wrangler r2 object put "${R2_BUCKET}/${R2_KEY}" --file "${OUT_FILE}" --content-type application/octet-stream --remote`,
+    `wrangler r2 object put "${R2_BUCKET}/${R2_KEY}" --file "${OUT_FILE}" --content-type application/octet-stream ${remoteFlag}`.trim(),
     { stdio: "inherit" }
   );
 
