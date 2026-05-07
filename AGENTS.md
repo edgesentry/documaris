@@ -1,6 +1,8 @@
 # AGENTS
 
-Maritime document generation and compliance automation platform. documaris produces port call documentation packages from structured vessel data, checks them for regulatory conflicts, and signs them with a cryptographic audit trail.
+Multi-profile document generation and compliance automation platform. documaris produces regulatory compliance documents from structured sensor or operational data, checks them against profile-specific rules, and signs them with a cryptographic audit trail.
+
+Supported profiles: `fal-form-1` / `fal-form-5` (maritime port call, PIER71), `sg-bca-greenmark` (BCA Green Mark Section 4, BEAMP). Same pipeline core — only the parser, field map, HTML template, and rules differ per profile.
 
 ## Related repos
 
@@ -16,9 +18,12 @@ Maritime document generation and compliance automation platform. documaris produ
 | Path | Purpose |
 |------|---------|
 | `app/` | React + DuckDB WASM web app (Vite, TypeScript strict) |
-| `app/src/components/` | UI components — VoyageSelector, AlertList, AuditPanel, FieldAnalysis |
-| `app/src/lib/pipeline.ts` | Core document generation pipeline |
+| `app/src/components/` | UI components — VoyageSelector, AlertList, AuditPanel, FieldAnalysis, PortfolioView, OperatorView |
+| `app/src/lib/pipeline.ts` | Core pipeline — `runPipeline()` (maritime) and `runBcaPipeline()` (BCA); same `check/seal/build_audit_payload` calls |
 | `app/src/lib/clarusData.ts` | Fetches vessel data from clarus R2 via DuckDB WASM |
+| `app/src/lib/bcaData.ts` | Fetches BCA outlet data from `documaris-dev-public-analytics` R2 via DuckDB WASM; `loadPortfolio()`, `loadOperatorSites()` |
+| `functions/data/[[path]].js` | Cloudflare Pages Function — serves `documaris-dev-public-analytics` R2 at `/data/analytics/*` |
+| `scripts/generate-bca-fixtures.ts` | Generates synthetic BCA outlet Parquet (45 sites, 3 operators) and uploads to R2 |
 | `field_maps/` | JSON field map contracts per form type |
 | `schemas/` | JSON Schema for indago vessel record contract |
 | `mock/` | Sample vessel records for local testing |
@@ -32,7 +37,10 @@ Maritime document generation and compliance automation platform. documaris produ
 | PII boundary | Crew PII (`agent_entry` fields) entered locally, never transits the network — only BLAKE3 hash is sent |
 | Field maps as JSON | Form-to-source contracts are data, not code — new forms added without changing pipeline |
 | Trust Layer | Reuses `edgesentry-audit` (BLAKE3 + Ed25519) — same audit chain format as clarus |
+| Multi-profile architecture | `check()`, `build_audit_payload()`, `seal()` are profile-agnostic. Only `parse_*_csv()`, `fill_*()`, `render_html(template)` differ per profile. Adding a new regulated sector = new parser + template + rules JSON, no pipeline changes. |
+| `above_threshold` compliance check | Fires when a numeric field exceeds a threshold (e.g. EUI > 115). Complements `not_null` / `not_expired`. Alert message includes actual value and target for human readability. |
 | indago R2 dependency | App reads vessel Parquet from R2; indago must have populated the bucket before demo |
+| BCA R2 bucket | `documaris-dev-public-analytics` — served via Pages Function at `/data/analytics/*`. Populated by `scripts/generate-bca-fixtures.ts` (`npm run generate-bca` for remote, `generate-bca:local` for local dev). |
 
 ## External dependency map
 
@@ -41,6 +49,9 @@ Maritime document generation and compliance automation platform. documaris produ
 | Empty vessel selector | indago pipeline not run | [indago](https://github.com/edgesentry/indago) |
 | Missing AIS track data | indago AIS ingest not run | [indago](https://github.com/edgesentry/indago) |
 | Audit chain verify fails | edgesentry-audit version mismatch | [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) |
+| Empty BCA portfolio (remote) | `scripts/generate-bca-fixtures.ts` not run with `--remote` | run `npm run generate-bca` in `scripts/` |
+| Empty BCA portfolio (local) | local R2 not populated | run `npm run generate-bca:local` in `scripts/` |
+| BCA compliance alerts not firing | WASM out of date after edgesentry-rs changes | rebuild WASM and copy to `app/src/wasm-pkg/` |
 
 ## Coding conventions
 
