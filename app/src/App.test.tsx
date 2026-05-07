@@ -75,7 +75,7 @@ const LIVE_BCA_SCENARIOS: BcaScenario[] = [
 
 const MOCK_BCA_RESULT: BcaPipelineResult = {
   filled: {
-    voyage_id: "SP-OUTLET-042",
+    voyage_id: "MCH-OUTLET-042",
     template: "sg-bca-greenmark",
     fields: {
       EUI_KWH_M2: { value: "108.5", confidence: 0.95, flagged: false, source: "direct" },
@@ -264,7 +264,7 @@ describe("App — BCA live data from R2", () => {
   it("shows live outlet data from R2 in BCA selector", async () => {
     await switchToBca();
     await waitFor(() => {
-      expect(screen.getByText("Singapore Pools — Tampines Hub")).toBeInTheDocument();
+      expect(screen.getByText("Meridian Community Hub — Tampines Hub")).toBeInTheDocument();
     });
   });
 
@@ -287,7 +287,7 @@ describe("App — BCA live data from R2", () => {
     await switchToBca();
     await waitFor(() => {
       // Static BC1 scenario is shown
-      expect(screen.getByText("Singapore Pools — Tampines Hub")).toBeInTheDocument();
+      expect(screen.getByText("Meridian Community Hub — Tampines Hub")).toBeInTheDocument();
     });
     // No live score shown (static scenario has no complianceScore)
     expect(screen.queryByText(/Score \d+\/100/)).not.toBeInTheDocument();
@@ -302,8 +302,8 @@ describe("App — BCA document generation", () => {
     await waitFor(() => expect(screen.getByText("BCA Green Mark — Section 4")).toBeInTheDocument());
     fireEvent.click(screen.getByText("BCA Green Mark — Section 4"));
     await waitFor(() => expect(screen.getByText(/BCA Green Mark — Section 4 Energy Efficiency/)).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText("Singapore Pools — Tampines Hub")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Singapore Pools — Tampines Hub"));
+    await waitFor(() => expect(screen.getByText("Meridian Community Hub — Tampines Hub")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Meridian Community Hub — Tampines Hub"));
     await waitFor(() => expect(screen.getByText("BCA Green Mark — Section 4")).toBeInTheDocument());
   }
 
@@ -332,7 +332,7 @@ describe("App — BCA document generation", () => {
   it("shows outlet ID in the result header", async () => {
     await generateBcaDoc();
     await waitFor(() => {
-      expect(screen.getByText("SP-OUTLET-042")).toBeInTheDocument();
+      expect(screen.getByText("MCH-OUTLET-042")).toBeInTheDocument();
     });
   });
 });

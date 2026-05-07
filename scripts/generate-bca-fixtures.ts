@@ -86,8 +86,8 @@ function generateOutlets(): Outlet[] {
 
   for (let i = 0; i < OUTLET_NAMES.length; i++) {
     const idx = String(i + 1).padStart(3, "0");
-    const outletId = `SP-OUTLET-${idx}`;
-    const name = `Singapore Pools — ${OUTLET_NAMES[i]}`;
+    const outletId = `MCH-OUTLET-${idx}`;
+    const name = `Meridian Community Hub — ${OUTLET_NAMES[i]}`;
 
     // Randomise metrics with realistic variance around the Platinum threshold.
     // ~60% of outlets are compliant (below threshold), ~40% have issues.

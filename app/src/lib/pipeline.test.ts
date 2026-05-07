@@ -183,8 +183,8 @@ describe("BC1 — compliant outlet", () => {
     result = await runBcaPipeline(BCA_SCENARIOS[0].csv);
   });
 
-  it("parses outlet_id SP-OUTLET-042", () => {
-    expect(result.filled.voyage_id).toBe("SP-OUTLET-042");
+  it("parses outlet_id MCH-OUTLET-042", () => {
+    expect(result.filled.voyage_id).toBe("MCH-OUTLET-042");
   });
 
   it("template is sg-bca-greenmark", () => {
@@ -200,7 +200,7 @@ describe("BC1 — compliant outlet", () => {
   });
 
   it("renders HTML containing building name", () => {
-    expect(result.html).toContain("Singapore Pools");
+    expect(result.html).toContain("Meridian Community Hub");
   });
 
   it("seals AuditRecord with 64-char lowercase hex BLAKE3 hash", () => {
