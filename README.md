@@ -56,11 +56,11 @@ edgesentry    physical inspection layer (enters Phase 3)
 documaris is one of two products in the EdgeSentry platform. Both operate on the **same vessel entity**.
 
 ```
-clarus (vessel risk intelligence)          documaris (port call documentation)
-─────────────────────────────────          ───────────────────────────────────
-AIS gaps · STS transfers                   FAL Form 1 · BWM certificate check
-Behavioural risk score                     Compliance alerts · Audit record
-https://clarus.edgesentry.io/analysis/               https://documaris.edgesentry.io/analysis/
+clarus (physical port safety)              documaris (port call documentation)
+─────────────────────────────              ───────────────────────────────────
+Near-miss detection · Physics alerts       FAL Form 1 · BWM certificate check
+Tamper-proof audit records                 Compliance alerts · Audit record
+https://clarus.edgesentry.io/live          https://documaris.edgesentry.io/analysis/
          │                                          │
          └──────────── same vessel (MMSI) ──────────┘
 ```
@@ -72,9 +72,9 @@ Both products accept a `?mmsi=<mmsi>` URL parameter that auto-selects a vessel:
 | URL | Behaviour |
 |-----|-----------|
 | `https://documaris.edgesentry.io/analysis/?mmsi=563012345` | Fetches vessel from clarus Parquet, runs FAL Form 1 pipeline immediately — selector screen skipped |
-| `https://clarus.edgesentry.io/analysis/?mmsi=563012345` | Auto-selects the vessel in the risk scorecard sidebar |
+| `https://clarus.edgesentry.io/live?mmsi=563012345` | Auto-selects the vessel in the port safety operations monitor |
 
-On the documaris result panel, **"View risk profile in clarus →"** links back to the same vessel's scorecard (with `?mmsi=` appended). On the clarus scorecard, **"View port call documents in documaris →"** links forward to the FAL Form 1.
+On the documaris result panel, **"View port safety record in clarus →"** links to the vessel's operations monitor (with `?mmsi=` appended). On the clarus operations monitor, **"View port call documents in documaris →"** links forward to the FAL Form 1.
 
 See [`edgesentry-commercial/docs/strategy/platform-story.md`](https://github.com/edgesentry/edgesentry-commercial) for the full platform narrative.
 
