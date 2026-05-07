@@ -261,6 +261,59 @@ describe("BC3 — audit period missing", () => {
   });
 });
 
+// ── BC4 — above_threshold compliance (EUI/COP/LPD exceeded) ──────────────────
+
+describe("BC4 — above_threshold compliance alerts", () => {
+  const BCA_HEADER = "outlet_id,building_name,building_type,period_start,period_end,gross_floor_area_m2,eui_kwh_m2,chiller_cop,lpd_w_m2,water_l_m2,green_mark_target,certifying_body";
+
+  it("fires EUI_PLATINUM_EXCEEDED when EUI > 115", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-001,Test Building,Retail,2025-01-01,2025-12-31,3000,122.5,0.61,13.0,380.0,Gold+,BCA`;
+    const result = await runBcaPipeline(csv);
+    const alert = result.alerts.find((a) => a.rule_id === "EUI_PLATINUM_EXCEEDED");
+    expect(alert).toBeDefined();
+    expect(alert!.severity).toBe("HIGH");
+    expect(alert!.message).toContain("122.5");
+    expect(alert!.message).toContain("115");
+  });
+
+  it("does not fire EUI_PLATINUM_EXCEEDED when EUI ≤ 115", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-002,Test Building,Retail,2025-01-01,2025-12-31,3000,108.0,0.61,13.0,380.0,Platinum,BCA`;
+    const result = await runBcaPipeline(csv);
+    expect(result.alerts.find((a) => a.rule_id === "EUI_PLATINUM_EXCEEDED")).toBeUndefined();
+  });
+
+  it("fires CHILLER_COP_EXCEEDED when COP > 0.65", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-003,Test Building,Retail,2025-01-01,2025-12-31,3000,110.0,0.72,13.0,380.0,Gold+,BCA`;
+    const result = await runBcaPipeline(csv);
+    const alert = result.alerts.find((a) => a.rule_id === "CHILLER_COP_EXCEEDED");
+    expect(alert).toBeDefined();
+    expect(alert!.message).toContain("0.72");
+  });
+
+  it("fires LPD_PLATINUM_EXCEEDED when LPD > 15", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-004,Test Building,Retail,2025-01-01,2025-12-31,3000,110.0,0.61,16.5,380.0,Gold+,BCA`;
+    const result = await runBcaPipeline(csv);
+    const alert = result.alerts.find((a) => a.rule_id === "LPD_PLATINUM_EXCEEDED");
+    expect(alert).toBeDefined();
+    expect(alert!.message).toContain("16.5");
+  });
+
+  it("sets review_required when HIGH threshold alert fires", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-005,Test Building,Retail,2025-01-01,2025-12-31,3000,130.0,0.80,18.0,380.0,Gold,BCA`;
+    const result = await runBcaPipeline(csv);
+    expect(result.filled.review_required).toBe(true);
+    expect(result.alerts.filter((a) => a.severity === "HIGH").length).toBeGreaterThan(0);
+  });
+
+  it("compliant outlet has 0 threshold alerts and review_required false", async () => {
+    const csv = `${BCA_HEADER}\nMCH-TEST-006,Test Building,Retail,2025-01-01,2025-12-31,3000,108.0,0.61,13.0,380.0,Platinum,BCA`;
+    const result = await runBcaPipeline(csv);
+    const thresholdAlerts = result.alerts.filter((a) => a.rule_id.endsWith("_EXCEEDED"));
+    expect(thresholdAlerts).toHaveLength(0);
+    expect(result.filled.review_required).toBe(false);
+  });
+});
+
 // ── architectural proof: shared audit chain ───────────────────────────────────
 
 describe("architectural proof — shared audit chain", () => {
