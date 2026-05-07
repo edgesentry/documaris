@@ -33,10 +33,9 @@ jobs:
         run: npm run build
 
       - name: Deploy to Cloudflare Pages
-        working-directory: app
         run: |
           COMMIT_MSG=$(git log -1 --pretty=format:'%s' | LC_ALL=C tr -cd '[:print:]' | cut -c1-72)
-          npx wrangler pages deploy dist \
+          npx wrangler pages deploy app/dist \
             --project-name=documaris \
             --branch=main \
             --commit-dirty=true \
