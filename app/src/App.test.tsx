@@ -131,9 +131,9 @@ describe("App — result header clarus link", () => {
     window.history.replaceState({}, "", "/?mmsi=477123456");
     render(<App />);
     await waitFor(() => {
-      expect(screen.getByText("View risk profile in clarus →")).toBeInTheDocument();
+      expect(screen.getByText("View port safety record in clarus →")).toBeInTheDocument();
     });
-    const link = screen.getByText("View risk profile in clarus →").closest("a")!;
+    const link = screen.getByText("View port safety record in clarus →").closest("a")!;
     expect(link.getAttribute("href")).toBe("https://clarus-d5d.pages.dev?mmsi=477123456");
   });
 });
