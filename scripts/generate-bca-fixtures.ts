@@ -7,7 +7,7 @@
  *
  * Output:
  *   bca_outlet_features.parquet  (local temp file, then uploaded)
- *   R2 key: bca_outlet_features.parquet
+ *   R2 key: bca/bca_outlet_features.parquet
  *
  * Schema mirrors BcaOutletEntity in edgesentry-parse, plus derived fields
  * (compliance_score, alert_count) for the outlet selector UI.
@@ -55,10 +55,18 @@ const EUI_PLATINUM = 115;
 const COP_PLATINUM = 0.65;
 const LPD_PLATINUM = 15;
 
+const OPERATORS = [
+  { operator_id: "ACM", operator_name: "Acme Facilities",       sites: 20 },
+  { operator_id: "BPG", operator_name: "Beta Property Group",   sites: 15 },
+  { operator_id: "GMF", operator_name: "Gamma FM Pte Ltd",      sites: 10 },
+];
+
 interface Outlet {
   outlet_id: string;
   building_name: string;
   building_type: string;
+  operator_id: string;
+  operator_name: string;
   period_start: string;
   period_end: string;
   gross_floor_area_m2: number;
@@ -84,59 +92,64 @@ function generateOutlets(): Outlet[] {
   const rand = seededRandom(42);
   const outlets: Outlet[] = [];
 
-  for (let i = 0; i < OUTLET_NAMES.length; i++) {
-    const idx = String(i + 1).padStart(3, "0");
-    const outletId = `MCH-OUTLET-${idx}`;
-    const name = `Acme Facilities — ${OUTLET_NAMES[i]}`;
+  for (const op of OPERATORS) {
+    for (let i = 0; i < op.sites; i++) {
+      const idx = String(i + 1).padStart(3, "0");
+      const outletId = `${op.operator_id}-${idx}`;
+      const siteName = OUTLET_NAMES[i % OUTLET_NAMES.length];
+      const name = `${op.operator_name} — ${siteName}`;
 
-    // Randomise metrics with realistic variance around the Platinum threshold.
-    // ~60% of outlets are compliant (below threshold), ~40% have issues.
-    const compliant = rand() < 0.6;
+      // Randomise metrics with realistic variance around the Platinum threshold.
+      // ~60% of outlets are compliant (below threshold), ~40% have issues.
+      const compliant = rand() < 0.6;
 
-    const eui = compliant
-      ? 90 + rand() * 25          // 90–115 (under threshold)
-      : 115 + rand() * 40;        // 115–155 (over threshold)
+      const eui = compliant
+        ? 90 + rand() * 25          // 90–115 (under threshold)
+        : 115 + rand() * 40;        // 115–155 (over threshold)
 
-    const cop = compliant
-      ? 0.55 + rand() * 0.10      // 0.55–0.65 (under threshold)
-      : 0.65 + rand() * 0.20;     // 0.65–0.85 (over threshold)
+      const cop = compliant
+        ? 0.55 + rand() * 0.10      // 0.55–0.65 (under threshold)
+        : 0.65 + rand() * 0.20;     // 0.65–0.85 (over threshold)
 
-    const lpd = compliant
-      ? 10 + rand() * 5           // 10–15 (under threshold)
-      : 15 + rand() * 8;          // 15–23 (over threshold)
+      const lpd = compliant
+        ? 10 + rand() * 5           // 10–15 (under threshold)
+        : 15 + rand() * 8;          // 15–23 (over threshold)
 
-    const water = 350 + rand() * 150;  // 350–500 L/m²/year
-    const gfa = 2000 + rand() * 2000;  // 2000–4000 m²
+      const water = 350 + rand() * 150;  // 350–500 L/m²/year
+      const gfa = 2000 + rand() * 2000;  // 2000–4000 m²
 
-    // Count BCA compliance failures
-    const euiFail  = eui  > EUI_PLATINUM  ? 1 : 0;
-    const copFail  = cop  > COP_PLATINUM  ? 1 : 0;
-    const lpdFail  = lpd  > LPD_PLATINUM  ? 1 : 0;
-    const alertCount = euiFail + copFail + lpdFail;
+      // Count BCA compliance failures
+      const euiFail  = eui  > EUI_PLATINUM  ? 1 : 0;
+      const copFail  = cop  > COP_PLATINUM  ? 1 : 0;
+      const lpdFail  = lpd  > LPD_PLATINUM  ? 1 : 0;
+      const alertCount = euiFail + copFail + lpdFail;
 
-    // Score: 100 minus 20 per failed metric (rough proxy for demonstration)
-    const complianceScore = Math.max(0, 100 - alertCount * 25 - rand() * 10);
+      // Score: 100 minus 20 per failed metric (rough proxy for demonstration)
+      const complianceScore = Math.max(0, 100 - alertCount * 25 - rand() * 10);
 
-    const target = alertCount === 0 ? "Platinum"
-                 : alertCount === 1 ? "Gold+"
-                 : "Gold";
+      const target = alertCount === 0 ? "Platinum"
+                   : alertCount === 1 ? "Gold+"
+                   : "Gold";
 
-    outlets.push({
-      outlet_id: outletId,
-      building_name: name,
-      building_type: "Retail / Community",
-      period_start: "2025-01-01",
-      period_end: "2025-12-31",
-      gross_floor_area_m2: Math.round(gfa),
-      eui_kwh_m2: Math.round(eui * 10) / 10,
-      chiller_cop: Math.round(cop * 100) / 100,
-      lpd_w_m2: Math.round(lpd * 10) / 10,
-      water_l_m2: Math.round(water * 10) / 10,
-      green_mark_target: target,
-      certifying_body: "BCA",
-      compliance_score: Math.round(complianceScore),
-      alert_count: alertCount,
-    });
+      outlets.push({
+        outlet_id: outletId,
+        building_name: name,
+        building_type: "Retail / Community",
+        operator_id: op.operator_id,
+        operator_name: op.operator_name,
+        period_start: "2025-01-01",
+        period_end: "2025-12-31",
+        gross_floor_area_m2: Math.round(gfa),
+        eui_kwh_m2: Math.round(eui * 10) / 10,
+        chiller_cop: Math.round(cop * 100) / 100,
+        lpd_w_m2: Math.round(lpd * 10) / 10,
+        water_l_m2: Math.round(water * 10) / 10,
+        green_mark_target: target,
+        certifying_body: "BCA",
+        compliance_score: Math.round(complianceScore),
+        alert_count: alertCount,
+      });
+    }
   }
 
   return outlets;
@@ -154,7 +167,8 @@ async function main() {
   // Build VALUES clause
   const values = outlets.map((o) => `(
     '${o.outlet_id}', '${o.building_name.replace(/'/g, "''")}',
-    '${o.building_type}', '${o.period_start}', '${o.period_end}',
+    '${o.building_type}', '${o.operator_id}', '${o.operator_name.replace(/'/g, "''")}',
+    '${o.period_start}', '${o.period_end}',
     ${o.gross_floor_area_m2}, ${o.eui_kwh_m2}, ${o.chiller_cop},
     ${o.lpd_w_m2}, ${o.water_l_m2}, '${o.green_mark_target}',
     '${o.certifying_body}', ${o.compliance_score}, ${o.alert_count}
@@ -164,6 +178,7 @@ async function main() {
     COPY (
       SELECT * FROM (VALUES ${values}) AS t(
         outlet_id, building_name, building_type,
+        operator_id, operator_name,
         period_start, period_end, gross_floor_area_m2,
         eui_kwh_m2, chiller_cop, lpd_w_m2, water_l_m2,
         green_mark_target, certifying_body,

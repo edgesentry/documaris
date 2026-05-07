@@ -168,9 +168,9 @@ describe("BCA fixtures", () => {
     }
   });
 
-  it("BCA rules JSON is valid and has five rules", () => {
+  it("BCA rules JSON is valid and has eight rules", () => {
     const rules = JSON.parse(BCA_GREEN_MARK_RULES) as unknown[];
-    expect(rules).toHaveLength(5);
+    expect(rules).toHaveLength(8);
   });
 });
 

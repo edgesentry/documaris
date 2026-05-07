@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import App from "./App.js";
-import { SCENARIOS, BCA_SCENARIOS, type Scenario, type BcaScenario } from "./lib/fixtures.js";
+import { SCENARIOS, type Scenario } from "./lib/fixtures.js";
 import type { PipelineResult, BcaPipelineResult } from "./lib/pipeline.js";
+import type { OperatorSummary, SiteSummary } from "./lib/bcaData.js";
 
 vi.mock("./lib/clarusData.js", () => ({
   loadClarusScenarios: vi.fn(),
@@ -11,7 +12,10 @@ vi.mock("./lib/clarusData.js", () => ({
 }));
 
 vi.mock("./lib/bcaData.js", () => ({
+  loadPortfolio: vi.fn(),
+  loadOperatorSites: vi.fn(),
   loadBcaScenarios: vi.fn(),
+  siteSummaryToBcaScenario: vi.fn(),
 }));
 
 vi.mock("./lib/pipeline.js", () => ({
@@ -21,7 +25,7 @@ vi.mock("./lib/pipeline.js", () => ({
 }));
 
 import { loadClarusScenarios, loadClarusScenarioByMmsi } from "./lib/clarusData.js";
-import { loadBcaScenarios } from "./lib/bcaData.js";
+import { loadPortfolio, loadOperatorSites, siteSummaryToBcaScenario } from "./lib/bcaData.js";
 import { runPipeline, runBcaPipeline } from "./lib/pipeline.js";
 
 const LIVE_SCENARIOS: Scenario[] = [
@@ -54,28 +58,87 @@ const FORTUNE_STAR: Scenario = {
   clarusUrl: "https://clarus-d5d.pages.dev",
 };
 
-const LIVE_BCA_SCENARIOS: BcaScenario[] = [
+// ── BCA mock data ─────────────────────────────────────────────────────────────
+
+const MOCK_PORTFOLIO: OperatorSummary[] = [
   {
-    ...BCA_SCENARIOS[0],
-    complianceScore: 92,
-    alertCount: 0,
-    euiKwhM2: 108.5,
-    chillerCop: 0.61,
-    lpdWM2: 13.2,
+    operator_id: "ACM",
+    operator_name: "Acme Facilities",
+    site_count: 20,
+    compliant_count: 12,
+    needs_action_count: 8,
+    avg_eui: 112.3,
+    avg_compliance_score: 74,
   },
   {
-    ...BCA_SCENARIOS[1],
-    complianceScore: 55,
-    alertCount: 1,
-    euiKwhM2: 122.0,
-    chillerCop: 0.63,
-    lpdWM2: 14.1,
+    operator_id: "BPG",
+    operator_name: "Beta Property Group",
+    site_count: 15,
+    compliant_count: 9,
+    needs_action_count: 6,
+    avg_eui: 118.5,
+    avg_compliance_score: 68,
   },
 ];
 
+const MOCK_SITES: SiteSummary[] = [
+  {
+    outlet_id: "ACM-001",
+    building_name: "Acme Facilities — Tampines Hub",
+    building_type: "Retail / Community",
+    operator_id: "ACM",
+    operator_name: "Acme Facilities",
+    eui_kwh_m2: 108.5,
+    chiller_cop: 0.61,
+    lpd_w_m2: 13.2,
+    water_l_m2: 380.0,
+    green_mark_target: "Platinum",
+    compliance_score: 92,
+    alert_count: 0,
+    period_start: "2025-01-01",
+    period_end: "2025-12-31",
+    gross_floor_area_m2: 3200,
+    certifying_body: "BCA",
+  },
+  {
+    outlet_id: "ACM-002",
+    building_name: "Acme Facilities — Woodlands Civic Centre",
+    building_type: "Retail / Community",
+    operator_id: "ACM",
+    operator_name: "Acme Facilities",
+    eui_kwh_m2: 122.0,
+    chiller_cop: 0.68,
+    lpd_w_m2: 16.5,
+    water_l_m2: 420.0,
+    green_mark_target: "Gold+",
+    compliance_score: 55,
+    alert_count: 2,
+    period_start: "2025-01-01",
+    period_end: "2025-12-31",
+    gross_floor_area_m2: 2800,
+    certifying_body: "BCA",
+  },
+];
+
+const MOCK_BCA_SCENARIO = {
+  id: "BC1" as const,
+  label: "Platinum",
+  buildingName: "Acme Facilities — Tampines Hub",
+  outletId: "ACM-001",
+  description: "All Section 4 metrics within Platinum targets. Score: 92/100.",
+  expectReviewRequired: false,
+  expectedAlerts: 0,
+  csv: "outlet_id,building_name,building_type,period_start,period_end,gross_floor_area_m2,eui_kwh_m2,chiller_cop,lpd_w_m2,water_l_m2,green_mark_target,certifying_body\nACM-001,Acme Facilities — Tampines Hub,Retail / Community,2025-01-01,2025-12-31,3200,108.5,0.61,13.2,380,Platinum,BCA",
+  complianceScore: 92,
+  alertCount: 0,
+  euiKwhM2: 108.5,
+  chillerCop: 0.61,
+  lpdWM2: 13.2,
+};
+
 const MOCK_BCA_RESULT: BcaPipelineResult = {
   filled: {
-    voyage_id: "MCH-OUTLET-042",
+    voyage_id: "ACM-001",
     template: "sg-bca-greenmark",
     fields: {
       EUI_KWH_M2: { value: "108.5", confidence: 0.95, flagged: false, source: "direct" },
@@ -96,7 +159,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(loadClarusScenarios).mockResolvedValue(LIVE_SCENARIOS);
   vi.mocked(loadClarusScenarioByMmsi).mockResolvedValue(null);
-  vi.mocked(loadBcaScenarios).mockResolvedValue(LIVE_BCA_SCENARIOS);
+  vi.mocked(loadPortfolio).mockResolvedValue(MOCK_PORTFOLIO);
+  vi.mocked(loadOperatorSites).mockResolvedValue(MOCK_SITES);
+  vi.mocked(siteSummaryToBcaScenario).mockReturnValue(MOCK_BCA_SCENARIO);
   vi.mocked(runPipeline).mockResolvedValue(MOCK_RESULT);
   vi.mocked(runBcaPipeline).mockResolvedValue(MOCK_BCA_RESULT);
   window.history.replaceState({}, "", "/");
@@ -230,7 +295,7 @@ describe("App — BCA mode tab", () => {
     await waitFor(() => expect(screen.getByText("BCA Green Mark — Section 4")).toBeInTheDocument());
     fireEvent.click(screen.getByText("BCA Green Mark — Section 4"));
     await waitFor(() => {
-      expect(screen.getByText(/BCA Green Mark — Section 4 Energy Efficiency/)).toBeInTheDocument();
+      expect(screen.getByText(/BCA Green Mark Portfolio/)).toBeInTheDocument();
     });
   });
 
@@ -238,7 +303,7 @@ describe("App — BCA mode tab", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText("BCA Green Mark — Section 4")).toBeInTheDocument());
     fireEvent.click(screen.getByText("BCA Green Mark — Section 4"));
-    await waitFor(() => expect(screen.getByText(/BCA Green Mark — Section 4 Energy Efficiency/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/BCA Green Mark Portfolio/)).toBeInTheDocument());
     fireEvent.click(screen.getByText("Maritime — FAL Form 1"));
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "documaris" })).toBeInTheDocument();
@@ -246,51 +311,112 @@ describe("App — BCA mode tab", () => {
   });
 });
 
-// ── BCA mode — live data loading ─────────────────────────────────────────────
+// ── BCA mode — portfolio view ─────────────────────────────────────────────────
 
-describe("App — BCA live data from R2", () => {
+describe("App — BCA portfolio view", () => {
   async function switchToBca() {
     render(<App />);
     await waitFor(() => expect(screen.getByText("BCA Green Mark — Section 4")).toBeInTheDocument());
     fireEvent.click(screen.getByText("BCA Green Mark — Section 4"));
-    await waitFor(() => expect(screen.getByText(/BCA Green Mark — Section 4 Energy Efficiency/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/BCA Green Mark Portfolio/)).toBeInTheDocument());
   }
 
-  it("calls loadBcaScenarios on mount", async () => {
-    render(<App />);
-    await waitFor(() => expect(vi.mocked(loadBcaScenarios)).toHaveBeenCalledOnce());
-  });
-
-  it("shows live outlet data from R2 in BCA selector", async () => {
+  it("shows portfolio view when BCA tab is clicked", async () => {
     await switchToBca();
     await waitFor(() => {
-      expect(screen.getByText("Acme Facilities — Tampines Hub")).toBeInTheDocument();
+      expect(screen.getByText("Acme Facilities")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Beta Property Group")).toBeInTheDocument();
+  });
+
+  it("calls loadPortfolio on mount", async () => {
+    render(<App />);
+    await waitFor(() => expect(vi.mocked(loadPortfolio)).toHaveBeenCalledOnce());
+  });
+
+  it("shows site count and metrics for each operator", async () => {
+    await switchToBca();
+    await waitFor(() => {
+      expect(screen.getByText("20 sites")).toBeInTheDocument();
+    });
+    expect(screen.getByText("15 sites")).toBeInTheDocument();
+  });
+
+  it("shows compliant count for operators", async () => {
+    await switchToBca();
+    await waitFor(() => {
+      expect(screen.getByText(/12 compliant/)).toBeInTheDocument();
     });
   });
 
-  it("shows compliance score on live outlet cards", async () => {
+  it("shows needs_action count when > 0", async () => {
     await switchToBca();
+    await waitFor(() => {
+      expect(screen.getByText(/8 needs action/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows avg EUI and score", async () => {
+    await switchToBca();
+    await waitFor(() => {
+      expect(screen.getByText(/Avg EUI: 112.3 kWh\/m²/)).toBeInTheDocument();
+    });
+  });
+});
+
+// ── BCA mode — operator view ──────────────────────────────────────────────────
+
+describe("App — BCA operator view", () => {
+  async function navigateToOperator() {
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("BCA Green Mark — Section 4")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("BCA Green Mark — Section 4"));
+    await waitFor(() => expect(screen.getByText("Acme Facilities")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Acme Facilities"));
+    await waitFor(() => expect(vi.mocked(loadOperatorSites)).toHaveBeenCalledWith("ACM"));
+  }
+
+  it("shows operator sites when an operator is selected", async () => {
+    await navigateToOperator();
+    await waitFor(() => {
+      expect(screen.getByText("Acme Facilities — Tampines Hub")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Acme Facilities — Woodlands Civic Centre")).toBeInTheDocument();
+  });
+
+  it("shows search bar in operator view", async () => {
+    await navigateToOperator();
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Search sites…")).toBeInTheDocument();
+    });
+  });
+
+  it("shows back button in operator view", async () => {
+    await navigateToOperator();
+    await waitFor(() => {
+      expect(screen.getByText("← Portfolio")).toBeInTheDocument();
+    });
+  });
+
+  it("shows filter pills in operator view", async () => {
+    await navigateToOperator();
+    await waitFor(() => {
+      // "Platinum" appears as both a filter pill button and a site card badge span
+      const platinumEls = screen.getAllByText("Platinum");
+      expect(platinumEls.length).toBeGreaterThanOrEqual(1);
+      // Verify at least one is the pill button
+      expect(platinumEls.some((el) => el.tagName === "BUTTON")).toBe(true);
+    });
+    // Gold+ appears only in the filter pills (second site has Gold+ target)
+    expect(screen.getAllByText("Gold+").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Gold").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows compliance scores on site cards", async () => {
+    await navigateToOperator();
     await waitFor(() => {
       expect(screen.getByText(/Score 92\/100/)).toBeInTheDocument();
     });
-  });
-
-  it("shows EUI/COP/LPD metrics on live outlet cards", async () => {
-    await switchToBca();
-    await waitFor(() => {
-      expect(screen.getByText(/EUI 108.5 kWh\/m²/)).toBeInTheDocument();
-    });
-  });
-
-  it("falls back to static BCA_SCENARIOS if R2 errors", async () => {
-    vi.mocked(loadBcaScenarios).mockRejectedValue(new Error("R2 unavailable"));
-    await switchToBca();
-    await waitFor(() => {
-      // Static BC1 scenario is shown
-      expect(screen.getByText("Acme Facilities — Tampines Hub")).toBeInTheDocument();
-    });
-    // No live score shown (static scenario has no complianceScore)
-    expect(screen.queryByText(/Score \d+\/100/)).not.toBeInTheDocument();
   });
 });
 
@@ -301,23 +427,23 @@ describe("App — BCA document generation", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText("BCA Green Mark — Section 4")).toBeInTheDocument());
     fireEvent.click(screen.getByText("BCA Green Mark — Section 4"));
-    await waitFor(() => expect(screen.getByText(/BCA Green Mark — Section 4 Energy Efficiency/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Acme Facilities")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Acme Facilities"));
     await waitFor(() => expect(screen.getByText("Acme Facilities — Tampines Hub")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Acme Facilities — Tampines Hub"));
     await waitFor(() => expect(screen.getByText("BCA Green Mark — Section 4")).toBeInTheDocument());
   }
 
-  it("calls runBcaPipeline with the selected outlet CSV", async () => {
+  it("calls runBcaPipeline with the selected site's CSV", async () => {
     await generateBcaDoc();
     expect(vi.mocked(runBcaPipeline)).toHaveBeenCalledOnce();
-    expect(vi.mocked(runBcaPipeline)).toHaveBeenCalledWith(LIVE_BCA_SCENARIOS[0].csv);
+    expect(vi.mocked(runBcaPipeline)).toHaveBeenCalledWith(MOCK_BCA_SCENARIO.csv);
   });
 
   it("shows the BCA Section 4 document heading in result", async () => {
     await generateBcaDoc();
     await waitFor(() => {
       const headings = screen.getAllByText("BCA Green Mark — Section 4");
-      // At least 2: the tab button + the result section h2
       expect(headings.length).toBeGreaterThanOrEqual(2);
     });
   });
@@ -332,7 +458,7 @@ describe("App — BCA document generation", () => {
   it("shows outlet ID in the result header", async () => {
     await generateBcaDoc();
     await waitFor(() => {
-      expect(screen.getByText("MCH-OUTLET-042")).toBeInTheDocument();
+      expect(screen.getByText("ACM-001")).toBeInTheDocument();
     });
   });
 });

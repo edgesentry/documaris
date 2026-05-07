@@ -117,40 +117,59 @@ export const BCA_GREEN_MARK_RULES = JSON.stringify([
     field: "eui_kwh_m2",
     check: "not_null",
     severity: "HIGH",
-    regulation:
-      "BCA Green Mark 2021 — Section 4.1: Annual Energy Use Intensity (EUI) in kWh/m²/year is mandatory for all submissions. Platinum target: ≤ 115 kWh/m²/year.",
+    regulation: "BCA Green Mark 2021 — Section 4.1: EUI data is mandatory for all submissions.",
+  },
+  {
+    rule_id: "EUI_PLATINUM_EXCEEDED",
+    field: "eui_kwh_m2",
+    check: "above_threshold",
+    threshold: 115.0,
+    severity: "HIGH",
+    regulation: "BCA Green Mark 2021 — Section 4.1: EUI must be ≤ 115 kWh/m²/year for Platinum certification.",
   },
   {
     rule_id: "CHILLER_COP_PRESENT",
     field: "chiller_cop",
     check: "not_null",
     severity: "HIGH",
-    regulation:
-      "BCA Green Mark 2021 — Section 4.2: Chiller plant efficiency in kW/RT is mandatory for buildings with central chilled water systems. Platinum target: ≤ 0.65 kW/RT.",
+    regulation: "BCA Green Mark 2021 — Section 4.2: Chiller COP data is mandatory.",
+  },
+  {
+    rule_id: "CHILLER_COP_EXCEEDED",
+    field: "chiller_cop",
+    check: "above_threshold",
+    threshold: 0.65,
+    severity: "HIGH",
+    regulation: "BCA Green Mark 2021 — Section 4.2: Chiller plant efficiency must be ≤ 0.65 kW/RT for Platinum.",
   },
   {
     rule_id: "LPD_DATA_PRESENT",
     field: "lpd_w_m2",
     check: "not_null",
     severity: "HIGH",
-    regulation:
-      "BCA Green Mark 2021 — Section 4.3: Lighting Power Density (LPD) in W/m² is mandatory. Platinum target: ≤ 15 W/m² for retail and commercial spaces.",
+    regulation: "BCA Green Mark 2021 — Section 4.3: LPD data is mandatory.",
+  },
+  {
+    rule_id: "LPD_PLATINUM_EXCEEDED",
+    field: "lpd_w_m2",
+    check: "above_threshold",
+    threshold: 15.0,
+    severity: "HIGH",
+    regulation: "BCA Green Mark 2021 — Section 4.3: LPD must be ≤ 15 W/m² for Platinum certification.",
   },
   {
     rule_id: "AUDIT_PERIOD_START_PRESENT",
     field: "period_start",
     check: "not_null",
     severity: "MEDIUM",
-    regulation:
-      "BCA Green Mark 2021 — Section 2: Audit period start date is required to validate 12-month data coverage for renewal submissions.",
+    regulation: "BCA Green Mark 2021 — Section 2: Audit period start date is required.",
   },
   {
     rule_id: "AUDIT_PERIOD_END_PRESENT",
     field: "period_end",
     check: "not_null",
     severity: "MEDIUM",
-    regulation:
-      "BCA Green Mark 2021 — Section 2: Audit period end date is required to validate 12-month data coverage for renewal submissions.",
+    regulation: "BCA Green Mark 2021 — Section 2: Audit period end date is required.",
   },
 ]);
 
@@ -175,11 +194,17 @@ export async function runBcaPipeline(csv: string): Promise<BcaPipelineResult> {
   const alertsJson = check(filledJson, BCA_GREEN_MARK_RULES);
   const alerts = JSON.parse(alertsJson) as ComplianceAlert[];
 
+  // Propagate compliance alerts into review_required so the warning banner shows
+  const hasHighAlerts = alerts.some((a) => a.severity === "HIGH");
+  const filledWithReview: FilledDocument = hasHighAlerts
+    ? { ...filled, review_required: true }
+    : filled;
+
   // 4. Render BCA form HTML
   const html = render_html(filledJson, "sg-bca-greenmark");
 
   // 5. Build + seal audit payload — SAME call as maritime
-  const payloadJson = build_audit_payload(filledJson);
+  const payloadJson = build_audit_payload(JSON.stringify(filledWithReview));
   const auditJson = seal(payloadJson, DEMO_PRIVATE_KEY, "documaris-demo");
   const auditRecord = JSON.parse(auditJson) as AuditRecord;
 
@@ -188,5 +213,5 @@ export async function runBcaPipeline(csv: string): Promise<BcaPipelineResult> {
     .join("");
 
   const durationMs = Math.round(performance.now() - t0);
-  return { filled, alerts, html, auditRecord, payloadHash, durationMs };
+  return { filled: filledWithReview, alerts, html, auditRecord, payloadHash, durationMs };
 }
