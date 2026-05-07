@@ -6,6 +6,7 @@ import { FieldAnalysis } from "./components/FieldAnalysis.js";
 import { runPipeline, runBcaPipeline, type PipelineResult, type BcaPipelineResult } from "./lib/pipeline.js";
 import { SCENARIOS, BCA_SCENARIOS, type Scenario, type BcaScenario } from "./lib/fixtures.js";
 import { loadClarusScenarios, loadClarusScenarioByMmsi } from "./lib/clarusData.js";
+import { loadBcaScenarios } from "./lib/bcaData.js";
 
 type Phase =
   | { tag: "select"; scenarios: Scenario[]; loadingClarus: boolean }
@@ -27,6 +28,18 @@ export default function App() {
     loadingClarus: true,
   });
   const [bcaPhase, setBcaPhase] = useState<BcaPhase>({ tag: "select" });
+  const [bcaScenarios, setBcaScenarios] = useState<BcaScenario[]>(BCA_SCENARIOS);
+  const [loadingBca, setLoadingBca] = useState(true);
+
+  // Load live BCA outlet data from documaris-dev-public-analytics R2.
+  useEffect(() => {
+    loadBcaScenarios()
+      .then((live) => {
+        if (live.length > 0) setBcaScenarios(live);
+      })
+      .catch(() => { /* fall back to static BCA_SCENARIOS */ })
+      .finally(() => setLoadingBca(false));
+  }, []);
 
   // Load live vessel data from clarus; auto-select if ?mmsi= param is present.
   useEffect(() => {
@@ -109,18 +122,31 @@ export default function App() {
           <div className="selector-header">
             <h1>documaris</h1>
             <p className="subtitle">BCA Green Mark — Section 4 Energy Efficiency</p>
+            {loadingBca && <p className="loading-clarus">Loading live outlet data from R2…</p>}
           </div>
           <div className="cards">
-            {BCA_SCENARIOS.map((s) => (
-              <button key={s.id} className="card" onClick={() => handleBcaSelect(s)}>
+            {bcaScenarios.map((s, i) => (
+              <button key={s.outletId ?? i} className="card" onClick={() => handleBcaSelect(s)}>
                 <div className="card-top">
-                  <span className="scenario-id">{s.id}</span>
+                  <span className="scenario-id">{s.outletId}</span>
+                  {s.complianceScore !== undefined && (
+                    <span
+                      className={`risk-score ${s.complianceScore >= 80 ? "risk-low" : s.complianceScore >= 50 ? "risk-mid" : "risk-high"}`}
+                      title="BCA compliance score"
+                    >
+                      Score {s.complianceScore}/100
+                    </span>
+                  )}
                   <span className={`badge ${s.expectedAlerts === 0 ? "badge-ok" : "badge-warn"}`}>
                     {s.expectedAlerts === 0 ? "0 alerts" : `${s.expectedAlerts} alert${s.expectedAlerts > 1 ? "s" : ""}`}
                   </span>
                 </div>
                 <div className="vessel-name">{s.buildingName}</div>
-                <div className="vessel-imo">{s.outletId}</div>
+                {s.euiKwhM2 !== undefined && (
+                  <div className="vessel-imo">
+                    EUI {s.euiKwhM2} kWh/m² · COP {s.chillerCop} · LPD {s.lpdWM2} W/m²
+                  </div>
+                )}
                 <p className="card-desc">{s.description}</p>
                 <div className="card-cta">Generate BCA Green Mark Section 4 →</div>
               </button>

@@ -8,3 +8,5 @@ app/tsconfig.tsbuildinfo
 app/dist/
 site/
 uv.lock
+scripts/node_modules/
+.wrangler/

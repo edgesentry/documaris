@@ -60,6 +60,12 @@ export interface BcaScenario {
   expectReviewRequired: boolean;
   expectedAlerts: number;
   csv: string;
+  // live fields — present when loaded from R2
+  complianceScore?: number;
+  alertCount?: number;
+  euiKwhM2?: number;
+  chillerCop?: number;
+  lpdWM2?: number;
 }
 
 const BCA_HEADER =
