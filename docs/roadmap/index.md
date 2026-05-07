@@ -3,7 +3,7 @@
 - **Date:** 2026-05-07 (updated from 2026-04-26)
 - **Status:** Maritime pipeline live (PIER71 demo ready); BCA Green Mark profile live (BEAMP demo ready)
 - **PIER71 application deadline:** 15 June 2026
-- **BEAMP Cycle 6:** BCA Green Mark demo available — see [BCA Green Mark section](#beamp--bca-green-mark) below
+- **BEAMP:** Cycle 6 closed — demo ready for next cycle
 - **Secondary opportunity:** PIER71-02 (Cybersecurity — natural Phase 2 extension via edgesentry-audit)
 - **Dark-horse opportunity:** PIER71-20 (Fire Safety — NLP manifest screening, Phase 3 adjacent product)
 
@@ -310,7 +310,7 @@ Raw input bytes (image / email / chat)
 
 ## BEAMP — BCA Green Mark
 
-**Status:** Demo live (2026-05-07). Profile `sg-bca-greenmark` shipped in [edgesentry-rs#382](https://github.com/edgesentry/edgesentry-rs/pull/382) and [documaris#49](https://github.com/edgesentry/documaris/pull/49).
+**Status:** Demo live (2026-05-07). BEAMP Cycle 6 is closed — targeting next cycle. Profile `sg-bca-greenmark` shipped in [edgesentry-rs#382](https://github.com/edgesentry/edgesentry-rs/pull/382) and [documaris#49](https://github.com/edgesentry/documaris/pull/49).
 
 **What the demo shows:**
 
