@@ -35,51 +35,48 @@ async function getConn(): Promise<{ conn: duckdb.AsyncDuckDBConnection; close: (
   return { conn, close: () => conn.close() };
 }
 
-// ── Row type ──────────────────────────────────────────────────────────────────
+// ── Row type — matches real indago bca_outlet_features.parquet schema ─────────
+// Columns: outlet_id, operator_id, eui_kwh_m2, chiller_cop, lpd_w_m2,
+//          alert_count, score, period_start, period_end
 
 interface OutletRow {
   outlet_id: string;
-  building_name: string;
-  building_type: string;
-  period_start: string;
-  period_end: string;
-  gross_floor_area_m2: number;
+  operator_id: string;
   eui_kwh_m2: number;
   chiller_cop: number;
   lpd_w_m2: number;
-  water_l_m2: number;
-  green_mark_target: string;
-  certifying_body: string;
-  compliance_score: number;
   alert_count: number;
+  score: number;
+  period_start: number;
+  period_end: number;
 }
 
 function rowToOutlet(r: Record<string, unknown>): OutletRow {
   return {
-    outlet_id:           String(r.outlet_id),
-    building_name:       String(r.building_name),
-    building_type:       String(r.building_type),
-    period_start:        String(r.period_start),
-    period_end:          String(r.period_end),
-    gross_floor_area_m2: Number(r.gross_floor_area_m2),
-    eui_kwh_m2:          Number(r.eui_kwh_m2),
-    chiller_cop:         Number(r.chiller_cop),
-    lpd_w_m2:            Number(r.lpd_w_m2),
-    water_l_m2:          Number(r.water_l_m2),
-    green_mark_target:   String(r.green_mark_target),
-    certifying_body:     String(r.certifying_body),
-    compliance_score:    Number(r.compliance_score),
-    alert_count:         Number(r.alert_count),
+    outlet_id:   String(r.outlet_id),
+    operator_id: String(r.operator_id),
+    eui_kwh_m2:  Number(r.eui_kwh_m2),
+    chiller_cop: Number(r.chiller_cop),
+    lpd_w_m2:    Number(r.lpd_w_m2),
+    alert_count: Number(r.alert_count),
+    score:       Number(r.score),
+    period_start: Number(r.period_start),
+    period_end:   Number(r.period_end),
   };
+}
+
+function msToDateStr(ms: number): string {
+  if (!ms || ms === 0) return "";
+  return new Date(ms).toISOString().slice(0, 10);
 }
 
 function outletToBcaScenario(o: OutletRow): BcaScenario {
   const header = "outlet_id,building_name,building_type,period_start,period_end,gross_floor_area_m2,eui_kwh_m2,chiller_cop,lpd_w_m2,water_l_m2,green_mark_target,certifying_body";
   const row = [
-    o.outlet_id, o.building_name, o.building_type,
-    o.period_start, o.period_end, o.gross_floor_area_m2,
-    o.eui_kwh_m2, o.chiller_cop, o.lpd_w_m2, o.water_l_m2,
-    o.green_mark_target, o.certifying_body,
+    o.outlet_id, o.outlet_id, "Commercial",
+    msToDateStr(o.period_start), msToDateStr(o.period_end), 0,
+    o.eui_kwh_m2, o.chiller_cop, o.lpd_w_m2, 0,
+    "Platinum", "BCA",
   ].join(",");
 
   const alertCount = o.alert_count;
@@ -87,16 +84,16 @@ function outletToBcaScenario(o: OutletRow): BcaScenario {
 
   return {
     id,
-    label: o.green_mark_target,
-    buildingName: o.building_name,
+    label: "Platinum",
+    buildingName: o.outlet_id,
     outletId: o.outlet_id,
     description: alertCount === 0
-      ? `All Section 4 metrics within Platinum targets. Score: ${o.compliance_score}/100.`
-      : `${alertCount} metric(s) above threshold. Score: ${o.compliance_score}/100.`,
+      ? `All Section 4 metrics within Platinum targets. Score: ${o.score}/100.`
+      : `${alertCount} metric(s) above threshold. Score: ${o.score}/100.`,
     expectReviewRequired: alertCount > 0,
     expectedAlerts: alertCount,
     csv: `${header}\n${row}`,
-    complianceScore: o.compliance_score,
+    complianceScore: o.score,
     alertCount: o.alert_count,
     euiKwhM2: o.eui_kwh_m2,
     chillerCop: o.chiller_cop,
@@ -133,6 +130,28 @@ export interface SiteSummary {
   period_end: string;
   gross_floor_area_m2: number;
   certifying_body: string;
+}
+
+// Maps real indago Parquet row → SiteSummary (filling synthetic-only fields with defaults)
+function rowToSiteSummary(row: Record<string, unknown>): SiteSummary {
+  return {
+    outlet_id:           String(row.outlet_id),
+    building_name:       String(row.outlet_id),    // use outlet_id as display name
+    building_type:       "Commercial",
+    operator_id:         String(row.operator_id),
+    operator_name:       String(row.operator_id),  // use operator_id as display name
+    eui_kwh_m2:          Number(row.eui_kwh_m2),
+    chiller_cop:         Number(row.chiller_cop),
+    lpd_w_m2:            Number(row.lpd_w_m2),
+    water_l_m2:          0,
+    green_mark_target:   "Platinum",
+    compliance_score:    Number(row.score),
+    alert_count:         Number(row.alert_count),
+    period_start:        msToDateStr(Number(row.period_start)),
+    period_end:          msToDateStr(Number(row.period_end)),
+    gross_floor_area_m2: 0,
+    certifying_body:     "BCA",
+  };
 }
 
 // ── Portfolio helpers ─────────────────────────────────────────────────────────
@@ -174,13 +193,10 @@ export async function loadBcaScenarios(): Promise<BcaScenario[]> {
   const { conn, close } = await getConn();
   try {
     const result = await conn.query(`
-      SELECT outlet_id, building_name, building_type,
-             period_start, period_end, gross_floor_area_m2,
-             eui_kwh_m2, chiller_cop, lpd_w_m2, water_l_m2,
-             green_mark_target, certifying_body,
-             compliance_score, alert_count
+      SELECT outlet_id, operator_id, eui_kwh_m2, chiller_cop, lpd_w_m2,
+             alert_count, score, period_start, period_end
       FROM parquet_scan('bca_outlets.parquet')
-      ORDER BY compliance_score DESC
+      ORDER BY score DESC
       LIMIT 20
     `);
     return result.toArray()
@@ -195,11 +211,8 @@ export async function loadBcaScenarioByOutletId(outletId: string): Promise<BcaSc
   const { conn, close } = await getConn();
   try {
     const result = await conn.query(`
-      SELECT outlet_id, building_name, building_type,
-             period_start, period_end, gross_floor_area_m2,
-             eui_kwh_m2, chiller_cop, lpd_w_m2, water_l_m2,
-             green_mark_target, certifying_body,
-             compliance_score, alert_count
+      SELECT outlet_id, operator_id, eui_kwh_m2, chiller_cop, lpd_w_m2,
+             alert_count, score, period_start, period_end
       FROM parquet_scan('bca_outlets.parquet')
       WHERE outlet_id = '${outletId}'
       LIMIT 1
@@ -216,25 +229,25 @@ export async function loadPortfolio(): Promise<OperatorSummary[]> {
   const { conn, close } = await getConn();
   try {
     const result = await conn.query(`
-      SELECT operator_id, operator_name,
+      SELECT operator_id,
              COUNT(*) AS site_count,
              SUM(CASE WHEN alert_count = 0 THEN 1 ELSE 0 END) AS compliant_count,
              SUM(CASE WHEN alert_count > 0 THEN 1 ELSE 0 END) AS needs_action_count,
              ROUND(AVG(eui_kwh_m2), 1) AS avg_eui,
-             ROUND(AVG(compliance_score), 0) AS avg_compliance_score
+             ROUND(AVG(score), 0) AS avg_compliance_score
       FROM parquet_scan('bca_outlets.parquet')
-      GROUP BY operator_id, operator_name
-      ORDER BY operator_name
+      GROUP BY operator_id
+      ORDER BY operator_id
     `);
     return result.toArray().map((r) => {
       const row = r as Record<string, unknown>;
       return {
-        operator_id:         String(row.operator_id),
-        operator_name:       String(row.operator_name),
-        site_count:          Number(row.site_count),
-        compliant_count:     Number(row.compliant_count),
-        needs_action_count:  Number(row.needs_action_count),
-        avg_eui:             Number(row.avg_eui),
+        operator_id:          String(row.operator_id),
+        operator_name:        String(row.operator_id),
+        site_count:           Number(row.site_count),
+        compliant_count:      Number(row.compliant_count),
+        needs_action_count:   Number(row.needs_action_count),
+        avg_eui:              Number(row.avg_eui),
         avg_compliance_score: Number(row.avg_compliance_score),
       };
     });
@@ -247,35 +260,13 @@ export async function loadOperatorSites(operatorId: string): Promise<SiteSummary
   const { conn, close } = await getConn();
   try {
     const result = await conn.query(`
-      SELECT outlet_id, building_name, building_type, operator_id, operator_name,
-             eui_kwh_m2, chiller_cop, lpd_w_m2, water_l_m2,
-             green_mark_target, compliance_score, alert_count,
-             period_start, period_end, gross_floor_area_m2, certifying_body
+      SELECT outlet_id, operator_id, eui_kwh_m2, chiller_cop, lpd_w_m2,
+             alert_count, score, period_start, period_end
       FROM parquet_scan('bca_outlets.parquet')
       WHERE operator_id = '${operatorId}'
-      ORDER BY compliance_score DESC
+      ORDER BY score DESC
     `);
-    return result.toArray().map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        outlet_id:           String(row.outlet_id),
-        building_name:       String(row.building_name),
-        building_type:       String(row.building_type),
-        operator_id:         String(row.operator_id),
-        operator_name:       String(row.operator_name),
-        eui_kwh_m2:          Number(row.eui_kwh_m2),
-        chiller_cop:         Number(row.chiller_cop),
-        lpd_w_m2:            Number(row.lpd_w_m2),
-        water_l_m2:          Number(row.water_l_m2),
-        green_mark_target:   String(row.green_mark_target),
-        compliance_score:    Number(row.compliance_score),
-        alert_count:         Number(row.alert_count),
-        period_start:        String(row.period_start),
-        period_end:          String(row.period_end),
-        gross_floor_area_m2: Number(row.gross_floor_area_m2),
-        certifying_body:     String(row.certifying_body),
-      };
-    });
+    return result.toArray().map((r) => rowToSiteSummary(r as Record<string, unknown>));
   } finally {
     await close();
   }
