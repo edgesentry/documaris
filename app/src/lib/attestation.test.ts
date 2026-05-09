@@ -247,6 +247,7 @@ describe("fetchPortfolioAttestation", () => {
 
     let callIndex = 0;
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("zkp-latest")) return { ok: false };
       if (url.includes("/api/audit-summary")) {
         return { ok: true, json: async () => ({ runs: [{ run_id: "1000", record_count: 1, last_seq: 0 }] }) };
       }

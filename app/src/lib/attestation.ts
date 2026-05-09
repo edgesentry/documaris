@@ -82,19 +82,28 @@ function verifMockProof(proof: ZkProof, _attestation: GreenMarkAttestation): boo
 // ── Clarus API fetch ──────────────────────────────────────────────────────────
 
 async function fetchAuditSummary(siteId: string): Promise<{ runs: Array<{ run_id: string; record_count: number; last_seq: number }> }> {
-  // Try /api/audit-summary (clarus#100). If it returns non-JSON (endpoint not yet
-  // deployed), fall through to derive run info from /api/audit-index instead.
+  // 1. Try the ZKP latest-pointer (written by the edge on every ZKP proof cycle).
+  //    This is a single GET (strongly consistent) that bypasses R2 list lag.
+  try {
+    const ptr = await fetch(`${CLARUS_AUDIT_BASE}/data/audit/zkp-latest/${encodeURIComponent(siteId)}.json`);
+    if (ptr.ok) {
+      const p = await ptr.json() as { run_id: string; last_seq: number };
+      if (p.run_id && p.last_seq != null) {
+        return { runs: [{ run_id: p.run_id, record_count: p.last_seq + 1, last_seq: p.last_seq }] };
+      }
+    }
+  } catch { /* no pointer yet */ }
+
+  // 2. Try /api/audit-summary (clarus#100). Falls through if not yet deployed.
   try {
     const res = await fetch(`${CLARUS_AUDIT_BASE}/api/audit-summary?site=${encodeURIComponent(siteId)}`);
     if (res.ok) {
       const d = await res.json() as { runs?: Array<{ run_id: string; record_count: number; last_seq: number }> };
       if (Array.isArray(d.runs)) return { runs: d.runs };
     }
-  } catch {
-    // non-JSON response (HTML redirect) — fall through to audit-index
-  }
+  } catch { /* non-JSON response */ }
 
-  // Fallback: derive run list from /api/audit-index keys.
+  // 3. Fallback: derive run list from /api/audit-index keys.
   const indexRes = await fetch(`${CLARUS_AUDIT_BASE}/api/audit-index?site=${encodeURIComponent(siteId)}`);
   if (!indexRes.ok) throw new Error(`audit-index ${indexRes.status}`);
   const { keys } = await indexRes.json() as { keys: string[] };
