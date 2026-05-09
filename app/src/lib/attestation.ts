@@ -85,7 +85,7 @@ async function fetchAuditSummary(siteId: string): Promise<{ runs: Array<{ run_id
   // 1. Try the ZKP latest-pointer (written by the edge on every ZKP proof cycle).
   //    This is a single GET (strongly consistent) that bypasses R2 list lag.
   try {
-    const ptr = await fetch(`${CLARUS_AUDIT_BASE}/data/audit/zkp-latest/${encodeURIComponent(siteId)}.json`);
+    const ptr = await fetch(`${CLARUS_AUDIT_BASE}/data/raw/zkp-latest/${encodeURIComponent(siteId)}.json`);
     if (ptr.ok) {
       const p = await ptr.json() as { run_id: string; last_seq: number };
       if (p.run_id && p.last_seq != null) {
