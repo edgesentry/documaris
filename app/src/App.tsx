@@ -31,14 +31,26 @@ type BcaPhase =
   | { tag: "result"; site: SiteSummary; result: BcaPipelineResult }
   | { tag: "error"; message: string; back: "portfolio" | "operator"; operator?: OperatorSummary };
 
+function modeFromUrl(): "maritime" | "bca" {
+  return new URLSearchParams(location.search).get("mode") === "bca" ? "bca" : "maritime";
+}
+
 export default function App() {
-  const [mode, setMode] = useState<"maritime" | "bca" | "zkp">("maritime");
+  const [mode, setMode] = useState<"maritime" | "bca">(modeFromUrl);
   const [phase, setPhase] = useState<Phase>({
     tag: "select",
     scenarios: SCENARIOS,
     loadingClarus: true,
   });
   const [bcaPhase, setBcaPhase] = useState<BcaPhase>({ tag: "portfolio", operators: [], loading: true });
+
+  const switchMode = (next: "maritime" | "bca") => {
+    setMode(next);
+    const url = new URL(location.href);
+    if (next === "maritime") url.searchParams.delete("mode");
+    else url.searchParams.set("mode", next);
+    history.replaceState(null, "", url.toString());
+  };
 
   // Load portfolio on mount (and whenever BCA tab is first activated)
   useEffect(() => {
@@ -117,35 +129,18 @@ export default function App() {
     <div className="mode-tabs">
       <button
         className={mode === "maritime" ? "active" : ""}
-        onClick={() => setMode("maritime")}
+        onClick={() => switchMode("maritime")}
       >
         Maritime — FAL Form 1
       </button>
       <button
         className={mode === "bca" ? "active" : ""}
-        onClick={() => setMode("bca")}
+        onClick={() => switchMode("bca")}
       >
         BCA Green Mark — Section 4
       </button>
-      <button
-        className={mode === "zkp" ? "active" : ""}
-        onClick={() => setMode("zkp")}
-      >
-        ZKP Attestation
-      </button>
     </div>
   );
-
-  // ── ZKP Attestation mode ─────────────────────────────────────────────────────
-  if (mode === "zkp") {
-    const operators = bcaPhase.tag === "portfolio" ? bcaPhase.operators : [];
-    return (
-      <div>
-        {modeTabs}
-        <AttestationView operators={operators} />
-      </div>
-    );
-  }
 
   // ── BCA mode ────────────────────────────────────────────────────────────────
 
@@ -177,6 +172,7 @@ export default function App() {
               .catch(() => setBcaPhase({ tag: "portfolio", operators: [], loading: false }))
             }
           />
+          <AttestationView operators={[bcaPhase.operator]} />
         </div>
       );
     }
