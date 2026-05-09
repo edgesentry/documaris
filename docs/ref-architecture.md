@@ -282,6 +282,35 @@ flowchart TD
 
 ---
 
+## ZKP Portfolio Attestation
+
+documaris can verify BCA Green Mark compliance attestations from the clarus WORM audit chain — without accessing raw sensor data. This is the fourth trust layer alongside BLAKE3 hash, Ed25519 signature, and audit chain integrity.
+
+```
+clarus edge (on-premises)          clarus WORM chain (R2)
+──────────────────────────         ───────────────────────
+Sensor data (private)              chains/{site}/{run}/{seq}.json
+→ GreenMarkProgram.prove()         └── zk_proof.public_values
+→ ZkProof { public_values }             = base64(GreenMarkAttestation)
+  (cert_level, pass/fail only)
+  Raw EUI/COP/LPD: never stored         ↓
+                                  documaris AttestationView
+                                  decodes public_values
+                                  displays cert level + PASS/FAIL
+                                  raw sensor data: never fetched
+```
+
+**`fetchSiteAttestation(siteId)`** discovery order:
+1. `zkp-latest/{site}.json` — edge-written pointer; single GET (strongly consistent)
+2. `/api/audit-summary?site=X` — clarus Pages Function (run list)
+3. `/api/audit-index?site=X` — key listing fallback
+
+**URL routing:** `?mode=bca` navigates directly to BCA Green Mark + ZKP view. URL updates on tab switch so BCA-focused teams can bookmark directly.
+
+**API:** `GET /api/bca-portfolio/:owner` → `PortfolioAttestation` JSON — for BCA integration and downstream audit systems.
+
+---
+
 ## OCR / Reverse Ingestion (Phase 2 — post-PIER71 roadmap)
 
 ```

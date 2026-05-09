@@ -15,6 +15,7 @@ Built for the [PIER71 Smart Port Challenge 2026](https://pier71.sg) — Innovati
 3. **Checks for regulatory conflicts** against a per-port knowledge base before generating the PDF — expired certificates, missed pre-notification windows, and DG restrictions surface as HIGH/MEDIUM/LOW alerts
 4. **Renders PDFs** server-side for non-PII forms; entirely in-browser via WASM for crew data (FAL Form 5) — crew PII never transits the server
 5. **Signs every document** with a BLAKE3 hash + Ed25519 signature and appends an AIS Voyage Evidence Summary — the full package is cryptographically verifiable
+6. **Verifies ZKP attestations** from the clarus WORM chain — proves BCA Green Mark compliance without exposing raw sensor data. Navigate directly to BCA mode: `?mode=bca`.
 
 ---
 
@@ -25,6 +26,7 @@ Built for the [PIER71 Smart Port Challenge 2026](https://pier71.sg) — Innovati
 | Open source (MIT) | IMO FAL Form 1 — General Declaration | MVP |
 | Open source (MIT) | IMO FAL Form 5 — Crew List | MVP |
 | Commercial | Singapore port entry package (MPA Port+, ICA, TradeNet, SFA) | MVP |
+| Commercial | BCA Green Mark Section 4 + ZKP Portfolio Attestation | Live |
 | Phase 2 roadmap | Japan port entry package (NACCS — Hakata / Tokyo) | Post-PIER71 |
 
 ---
@@ -83,5 +85,7 @@ See [`edgesentry-commercial/docs/strategy/platform-story.md`](https://github.com
 ## Status
 
 Live demo: **[documaris.edgesentry.io](https://documaris.edgesentry.io/analysis/)**
+
+**PR #56 (ZKP Portfolio Attestation) merged 2026-05-09.**
 
 **PIER71 application deadline: 15 June 2026**
