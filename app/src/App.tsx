@@ -146,6 +146,16 @@ export default function App() {
 
   if (mode === "bca") {
     if (bcaPhase.tag === "portfolio") {
+      // When operators haven't loaded from R2 yet (local dev / direct ?mode=bca link),
+      // show AttestationView standalone so ZKP demo is immediately accessible.
+      if (!bcaPhase.loading && bcaPhase.operators.length === 0) {
+        return (
+          <div>
+            {modeTabs}
+            <AttestationView operators={[]} />
+          </div>
+        );
+      }
       return (
         <div>
           {modeTabs}
