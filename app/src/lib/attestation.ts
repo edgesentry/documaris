@@ -82,10 +82,38 @@ function verifMockProof(proof: ZkProof, _attestation: GreenMarkAttestation): boo
 // ── Clarus API fetch ──────────────────────────────────────────────────────────
 
 async function fetchAuditSummary(siteId: string): Promise<{ runs: Array<{ run_id: string; record_count: number; last_seq: number }> }> {
-  const res = await fetch(`${CLARUS_AUDIT_BASE}/api/audit-summary?site=${siteId}`);
-  if (!res.ok) throw new Error(`audit-summary ${res.status}`);
-  const d = await res.json() as { runs?: Array<{ run_id: string; record_count: number; last_seq: number }> };
-  return { runs: d.runs ?? [] };
+  // Try /api/audit-summary (clarus#100). If it returns non-JSON (endpoint not yet
+  // deployed), fall through to derive run info from /api/audit-index instead.
+  try {
+    const res = await fetch(`${CLARUS_AUDIT_BASE}/api/audit-summary?site=${encodeURIComponent(siteId)}`);
+    if (res.ok) {
+      const d = await res.json() as { runs?: Array<{ run_id: string; record_count: number; last_seq: number }> };
+      if (Array.isArray(d.runs)) return { runs: d.runs };
+    }
+  } catch {
+    // non-JSON response (HTML redirect) — fall through to audit-index
+  }
+
+  // Fallback: derive run list from /api/audit-index keys.
+  const indexRes = await fetch(`${CLARUS_AUDIT_BASE}/api/audit-index?site=${encodeURIComponent(siteId)}`);
+  if (!indexRes.ok) throw new Error(`audit-index ${indexRes.status}`);
+  const { keys } = await indexRes.json() as { keys: string[] };
+  if (!keys.length) return { runs: [] };
+
+  const runMap = new Map<string, { run_id: string; record_count: number; last_seq: number }>();
+  for (const key of keys) {
+    const parts = key.split("/"); // chains/{site}/{run_id}/{seq}.json
+    if (parts.length < 4) continue;
+    const runId = parts[2];
+    const seq = parseInt(parts[3].replace(".json", ""), 10);
+    if (!runMap.has(runId)) runMap.set(runId, { run_id: runId, record_count: 0, last_seq: -1 });
+    const run = runMap.get(runId)!;
+    run.record_count += 1;
+    if (seq > run.last_seq) run.last_seq = seq;
+  }
+
+  const runs = [...runMap.values()].sort((a, b) => b.run_id.localeCompare(a.run_id));
+  return { runs };
 }
 
 async function fetchRecord(key: string): Promise<AuditRecord | null> {
