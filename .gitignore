@@ -10,3 +10,4 @@ site/
 uv.lock
 scripts/node_modules/
 .wrangler/
+app/tsconfig.tsbuildinfo
