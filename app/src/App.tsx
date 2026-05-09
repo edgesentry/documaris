@@ -5,6 +5,7 @@ import { AuditPanel } from "./components/AuditPanel.js";
 import { FieldAnalysis } from "./components/FieldAnalysis.js";
 import { PortfolioView } from "./components/PortfolioView.js";
 import { OperatorView } from "./components/OperatorView.js";
+import { AttestationView } from "./components/AttestationView.js";
 import { runPipeline, runBcaPipeline, type PipelineResult, type BcaPipelineResult } from "./lib/pipeline.js";
 import { SCENARIOS, type Scenario } from "./lib/fixtures.js";
 import { loadClarusScenarios, loadClarusScenarioByMmsi } from "./lib/clarusData.js";
@@ -30,14 +31,26 @@ type BcaPhase =
   | { tag: "result"; site: SiteSummary; result: BcaPipelineResult }
   | { tag: "error"; message: string; back: "portfolio" | "operator"; operator?: OperatorSummary };
 
+function modeFromUrl(): "maritime" | "bca" {
+  return new URLSearchParams(location.search).get("mode") === "bca" ? "bca" : "maritime";
+}
+
 export default function App() {
-  const [mode, setMode] = useState<"maritime" | "bca">("maritime");
+  const [mode, setMode] = useState<"maritime" | "bca">(modeFromUrl);
   const [phase, setPhase] = useState<Phase>({
     tag: "select",
     scenarios: SCENARIOS,
     loadingClarus: true,
   });
   const [bcaPhase, setBcaPhase] = useState<BcaPhase>({ tag: "portfolio", operators: [], loading: true });
+
+  const switchMode = (next: "maritime" | "bca") => {
+    setMode(next);
+    const url = new URL(location.href);
+    if (next === "maritime") url.searchParams.delete("mode");
+    else url.searchParams.set("mode", next);
+    history.replaceState(null, "", url.toString());
+  };
 
   // Load portfolio on mount (and whenever BCA tab is first activated)
   useEffect(() => {
@@ -116,13 +129,13 @@ export default function App() {
     <div className="mode-tabs">
       <button
         className={mode === "maritime" ? "active" : ""}
-        onClick={() => setMode("maritime")}
+        onClick={() => switchMode("maritime")}
       >
         Maritime — FAL Form 1
       </button>
       <button
         className={mode === "bca" ? "active" : ""}
-        onClick={() => setMode("bca")}
+        onClick={() => switchMode("bca")}
       >
         BCA Green Mark — Section 4
       </button>
@@ -133,6 +146,16 @@ export default function App() {
 
   if (mode === "bca") {
     if (bcaPhase.tag === "portfolio") {
+      // When operators haven't loaded from R2 yet (local dev / direct ?mode=bca link),
+      // show AttestationView standalone so ZKP demo is immediately accessible.
+      if (!bcaPhase.loading && bcaPhase.operators.length === 0) {
+        return (
+          <div>
+            {modeTabs}
+            <AttestationView operators={[]} />
+          </div>
+        );
+      }
       return (
         <div>
           {modeTabs}
@@ -159,6 +182,7 @@ export default function App() {
               .catch(() => setBcaPhase({ tag: "portfolio", operators: [], loading: false }))
             }
           />
+          <AttestationView operators={[bcaPhase.operator]} />
         </div>
       );
     }
