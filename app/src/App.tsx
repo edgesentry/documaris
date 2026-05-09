@@ -5,6 +5,7 @@ import { AuditPanel } from "./components/AuditPanel.js";
 import { FieldAnalysis } from "./components/FieldAnalysis.js";
 import { PortfolioView } from "./components/PortfolioView.js";
 import { OperatorView } from "./components/OperatorView.js";
+import { AttestationView } from "./components/AttestationView.js";
 import { runPipeline, runBcaPipeline, type PipelineResult, type BcaPipelineResult } from "./lib/pipeline.js";
 import { SCENARIOS, type Scenario } from "./lib/fixtures.js";
 import { loadClarusScenarios, loadClarusScenarioByMmsi } from "./lib/clarusData.js";
@@ -31,7 +32,7 @@ type BcaPhase =
   | { tag: "error"; message: string; back: "portfolio" | "operator"; operator?: OperatorSummary };
 
 export default function App() {
-  const [mode, setMode] = useState<"maritime" | "bca">("maritime");
+  const [mode, setMode] = useState<"maritime" | "bca" | "zkp">("maritime");
   const [phase, setPhase] = useState<Phase>({
     tag: "select",
     scenarios: SCENARIOS,
@@ -126,8 +127,25 @@ export default function App() {
       >
         BCA Green Mark — Section 4
       </button>
+      <button
+        className={mode === "zkp" ? "active" : ""}
+        onClick={() => setMode("zkp")}
+      >
+        ZKP Attestation
+      </button>
     </div>
   );
+
+  // ── ZKP Attestation mode ─────────────────────────────────────────────────────
+  if (mode === "zkp") {
+    const operators = bcaPhase.tag === "portfolio" ? bcaPhase.operators : [];
+    return (
+      <div>
+        {modeTabs}
+        <AttestationView operators={operators} />
+      </div>
+    );
+  }
 
   // ── BCA mode ────────────────────────────────────────────────────────────────
 
