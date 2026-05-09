@@ -13,8 +13,10 @@ import type { OperatorSummary } from "../lib/bcaData.js";
 // Maps documaris operator_ids to the clarus site_ids that have ZKP proofs.
 // In production this would come from a site registry.
 const OPERATOR_SITE_MAP: Record<string, string[]> = {
-  "MCH-OPERATOR-001": ["MCH-OUTLET-BCA"],
-  "MCH-OUTLET-BCA":   ["MCH-OUTLET-BCA"],
+  "MCH-OPERATOR-001": ["MCH-OUTLET-042"],
+  "MCH-OUTLET-BCA":   ["MCH-OUTLET-042"],
+  "MCH-OUTLET-042":   ["MCH-OUTLET-042"],
+  "ACM-OPERATOR-001": ["ACM-OUTLET-001"],
 };
 
 function fallbackSites(operatorId: string): string[] {
@@ -123,7 +125,7 @@ interface Props {
 
 export function AttestationView({ operators }: Props) {
   const [selectedOperator, setSelectedOperator] = useState<string>(
-    operators[0]?.operator_id ?? "MCH-OUTLET-BCA"
+    operators[0]?.operator_id ?? "MCH-OUTLET-042"
   );
   const [portfolio, setPortfolio] = useState<PortfolioAttestation | null>(null);
   const [loading, setLoading] = useState(false);
@@ -178,7 +180,8 @@ export function AttestationView({ operators }: Props) {
                 {op.operator_id} ({op.site_count} sites)
               </option>
             ))}
-            <option value="MCH-OUTLET-BCA">MCH-OUTLET-BCA (demo)</option>
+            <option value="MCH-OUTLET-042">MCH-OUTLET-042 (demo)</option>
+            <option value="ACM-OUTLET-001">ACM-OUTLET-001 (demo)</option>
           </select>
         </div>
       )}
@@ -248,8 +251,9 @@ export function AttestationView({ operators }: Props) {
       {/* API link */}
       <div style={{ marginTop: 16, fontSize: 11, color: "#8b949e" }}>
         API: <a
-          href={`/api/bca-portfolio/${selectedOperator}`}
+          href={`/api/bca-portfolio/${encodeURIComponent(selectedOperator)}`}
           target="_blank"
+          rel="noopener noreferrer"
           style={{ color: "#58a6ff" }}
         >
           /api/bca-portfolio/{selectedOperator}
