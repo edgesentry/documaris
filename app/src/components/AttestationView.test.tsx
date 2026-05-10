@@ -131,7 +131,8 @@ describe("AttestationView", () => {
     mockFetch(makeAttestation({ all_criteria_pass: true }));
     render(<AttestationView operators={OPERATORS} />);
     await waitFor(() => {
-      expect(screen.getByText(/✓ Certified/)).toBeInTheDocument();
+      // "✓ Certified" appears in both the filter pill and the status badge
+      expect(screen.getAllByText(/✓ Certified/).length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -139,7 +140,7 @@ describe("AttestationView", () => {
     mockFetch(makeAttestation({ all_criteria_pass: false, cert_level: "not_certified" }));
     render(<AttestationView operators={OPERATORS} />);
     await waitFor(() => {
-      expect(screen.getByText(/Below standard/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Below standard/).length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -159,7 +160,7 @@ describe("AttestationView", () => {
     });
   });
 
-  it("shows Data integrity issue status for tampered proof", async () => {
+  it("shows Data integrity issue status for tampered proof (filter pill + row badge)", async () => {
     // proof_bytes that doesn't match blake3(public_values) → proof_valid: false
     const att = makeAttestation({ all_criteria_pass: true, cert_level: "gold" });
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
@@ -181,7 +182,7 @@ describe("AttestationView", () => {
     }));
     render(<AttestationView operators={OPERATORS} />);
     await waitFor(() => {
-      expect(screen.getByText(/Data integrity issue/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Data integrity issue/).length).toBeGreaterThanOrEqual(1);
     });
   });
 

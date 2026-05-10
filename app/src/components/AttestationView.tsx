@@ -294,6 +294,119 @@ function SummaryBanner({ portfolio }: { portfolio: PortfolioAttestation }) {
   );
 }
 
+// ── Filter bar ────────────────────────────────────────────────────────────────
+
+type StatusFilter = "all" | "certified" | "below_standard" | "integrity_issue" | "no_records";
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: "all",             label: "All" },
+  { key: "certified",       label: "✓ Certified" },
+  { key: "below_standard",  label: "Below standard" },
+  { key: "integrity_issue", label: "⚠ Data integrity issue" },
+  { key: "no_records",      label: "No records" },
+];
+
+function matchesStatusFilter(site: SiteAttestation, filter: StatusFilter): boolean {
+  if (filter === "all")             return true;
+  if (filter === "integrity_issue") return site.proof_valid === false;
+  if (filter === "no_records")      return site.attestation === null;
+  if (filter === "certified")       return site.attestation?.all_criteria_pass === true && site.proof_valid !== false;
+  if (filter === "below_standard")  return site.attestation?.all_criteria_pass === false && site.proof_valid !== false;
+  return true;
+}
+
+function applySiteFilters(
+  sites: SiteAttestation[],
+  search: string,
+  status: StatusFilter,
+): SiteAttestation[] {
+  const q = search.trim().toLowerCase();
+  return sites.filter(s =>
+    matchesStatusFilter(s, status) &&
+    (q === "" || s.site_id.toLowerCase().includes(q))
+  );
+}
+
+interface FilterBarProps {
+  search: string;
+  onSearch: (v: string) => void;
+  status: StatusFilter;
+  onStatus: (v: StatusFilter) => void;
+  sites: SiteAttestation[];
+  filteredCount: number;
+}
+
+function FilterBar({ search, onSearch, status, onStatus, sites, filteredCount }: FilterBarProps) {
+  const counts: Record<StatusFilter, number> = {
+    all:             sites.length,
+    certified:       sites.filter(s => matchesStatusFilter(s, "certified")).length,
+    below_standard:  sites.filter(s => matchesStatusFilter(s, "below_standard")).length,
+    integrity_issue: sites.filter(s => matchesStatusFilter(s, "integrity_issue")).length,
+    no_records:      sites.filter(s => matchesStatusFilter(s, "no_records")).length,
+  };
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      {/* Search */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
+          <span style={{
+            position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+            color: "#8b949e", fontSize: 13, pointerEvents: "none",
+          }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Search by site ID…"
+            value={search}
+            onChange={e => onSearch(e.target.value)}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              background: "#0d1117", border: "1px solid #30363d", borderRadius: 6,
+              color: "#e6edf3", fontSize: 13, padding: "7px 12px 7px 32px",
+              outline: "none",
+            }}
+          />
+          {search && (
+            <button
+              onClick={() => onSearch("")}
+              style={{
+                position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                background: "none", border: "none", color: "#8b949e", cursor: "pointer",
+                fontSize: 14, padding: 0, lineHeight: 1,
+              }}
+            >×</button>
+          )}
+        </div>
+        <span style={{ fontSize: 12, color: "#8b949e", whiteSpace: "nowrap" }}>
+          {filteredCount === sites.length
+            ? `${sites.length} site${sites.length !== 1 ? "s" : ""}`
+            : `${filteredCount} of ${sites.length} sites`}
+        </span>
+      </div>
+
+      {/* Status filter pills */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {STATUS_FILTERS.filter(f => counts[f.key] > 0 || f.key === "all").map(f => (
+          <button
+            key={f.key}
+            onClick={() => onStatus(f.key)}
+            style={{
+              padding: "4px 12px", borderRadius: 20, fontSize: 12, cursor: "pointer",
+              border: status === f.key ? "1px solid #58a6ff" : "1px solid #30363d",
+              background: status === f.key ? "rgba(88,166,255,0.15)" : "#161b22",
+              color: status === f.key ? "#58a6ff" : "#8b949e",
+              fontWeight: status === f.key ? 600 : 400,
+            }}
+          >
+            {f.label}
+            <span style={{ marginLeft: 5, opacity: 0.7 }}>{counts[f.key]}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -306,6 +419,8 @@ export function AttestationView({ operators }: Props) {
   const [selectedOperator, setSelectedOperator] = useState<string>("MCH-OPERATOR-001");
   const [portfolio, setPortfolio]         = useState<PortfolioAttestation | null>(null);
   const [loading, setLoading]             = useState(false);
+  const [search, setSearch]               = useState("");
+  const [statusFilter, setStatusFilter]   = useState<StatusFilter>("all");
 
   useEffect(() => {
     fetchBcaSiteRegistry()
@@ -326,10 +441,16 @@ export function AttestationView({ operators }: Props) {
     if (!siteIds?.length) return;
     setLoading(true);
     setPortfolio(null);
+    setSearch("");
+    setStatusFilter("all");
     fetchPortfolioAttestation(selectedOperator, siteIds)
       .then(setPortfolio)
       .finally(() => setLoading(false));
   }, [selectedOperator, registry]);
+
+  const filteredSites = portfolio
+    ? applySiteFilters(portfolio.sites, search, statusFilter)
+    : [];
 
   return (
     <div style={{ padding: "24px", maxWidth: 1000, margin: "0 auto" }}>
@@ -394,38 +515,51 @@ export function AttestationView({ operators }: Props) {
         </div>
       )}
 
-      {/* Site table */}
+      {/* Filter bar + site table */}
       {portfolio && !loading && (
-        <div style={{
-          background: "#161b22", border: "1px solid #30363d", borderRadius: 10, overflow: "hidden",
-        }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid #30363d" }}>
-                {[
-                  "Site",
-                  "Certification Level",
-                  "EUI (kWh/m²/yr)",
-                  "Status",
-                  "Verified At",
-                  "",
-                ].map(label => (
-                  <th key={label} style={{
-                    fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em",
-                    color: "#8b949e", padding: "10px 16px", textAlign: "left",
-                  }}>
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {portfolio.sites.map(site => (
-                <SiteRow key={site.site_id} site={site} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <FilterBar
+            search={search}
+            onSearch={setSearch}
+            status={statusFilter}
+            onStatus={setStatusFilter}
+            sites={portfolio.sites}
+            filteredCount={filteredSites.length}
+          />
+
+          <div style={{
+            background: "#161b22", border: "1px solid #30363d", borderRadius: 10, overflow: "hidden",
+          }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #30363d" }}>
+                  {["Site", "Certification Level", "EUI (kWh/m²/yr)", "Status", "Verified At", ""].map(label => (
+                    <th key={label} style={{
+                      fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em",
+                      color: "#8b949e", padding: "10px 16px", textAlign: "left",
+                    }}>
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSites.length > 0
+                  ? filteredSites.map(site => <SiteRow key={site.site_id} site={site} />)
+                  : (
+                    <tr>
+                      <td colSpan={6} style={{
+                        padding: "32px 16px", textAlign: "center",
+                        color: "#8b949e", fontSize: 13,
+                      }}>
+                        No sites match the current filter.
+                      </td>
+                    </tr>
+                  )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Footer note */}
