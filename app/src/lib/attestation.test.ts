@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+// @ts-ignore
+import { blake3 } from "@noble/hashes/blake3.js";
 import {
   certLevelLabel,
   certLevelColor,
@@ -7,6 +9,10 @@ import {
   type GreenMarkAttestation,
   type ZkProof,
 } from "./attestation.js";
+
+function b64Encode(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes));
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -25,11 +31,13 @@ function makeAttestation(overrides: Partial<GreenMarkAttestation> = {}): GreenMa
 }
 
 function makeProof(att: GreenMarkAttestation): ZkProof {
+  const pubValJson  = JSON.stringify(att);
+  const pubValBytes = new TextEncoder().encode(pubValJson);
   return {
-    framework: "mock",
-    program_id: "bca-green-mark-2021-v1-mock",
-    proof_bytes: "dGVzdA==",
-    public_values: btoa(JSON.stringify(att)),
+    framework:    "mock",
+    program_id:   "bca-green-mark-2021-v1-mock",
+    proof_bytes:  b64Encode(blake3(pubValBytes)),  // valid mock: blake3(public_values_bytes)
+    public_values: btoa(pubValJson),
   };
 }
 
