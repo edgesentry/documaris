@@ -1,17 +1,10 @@
 /**
- * Fetch and decode BCA Green Mark ZKP attestations from the clarus WORM chain.
+ * Fetch BCA Green Mark compliance attestations from the clarus WORM chain.
  *
- * Each clarus audit record may contain a `zk_proof` field with a
- * `GreenMarkAttestation` encoded as base64 JSON in `public_values`.
- * This module fetches the most recent attested record per site and decodes it.
- *
- * Raw sensor data (eui_kwh_m2, chiller_cop, lpd_w_m2) is NOT fetched —
- * only the public attestation committed by the ZkProgram is read.
+ * Reads the top-level `attestation` field written by the clarus edge daemon
+ * on every BCA cycle. Falls back to `zk_proof.public_values` for records
+ * written before clarus#124.
  */
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — @noble/hashes uses .ts extensions internally; works at runtime
-import { blake3 } from "@noble/hashes/blake3.js";
 
 const CLARUS_AUDIT_BASE = "https://clarus.edgesentry.io";
 
@@ -30,11 +23,12 @@ export interface GreenMarkAttestation {
   period_end_ms: number;
 }
 
-export interface ZkProof {
+// Retained for backward compat with pre-clarus#124 records
+interface ZkProof {
   framework: string;
   program_id: string;
   proof_bytes: string;
-  public_values: string;
+  public_values: string; // base64 JSON → GreenMarkAttestation
 }
 
 export interface AuditRecord {
@@ -42,18 +36,17 @@ export interface AuditRecord {
   timestamp_ms: number;
   rule_id?: string;
   record_hash_hex?: string;
-  zk_proof?: ZkProof;
+  attestation?: GreenMarkAttestation; // top-level field (clarus#124+)
+  zk_proof?: ZkProof;                 // legacy field (pre-clarus#124)
 }
 
 export interface SiteAttestation {
   site_id: string;
-  /** Null if no ZKP-bearing record found for this site. */
   attestation: GreenMarkAttestation | null;
   record_hash: string | null;
   attested_at: Date | null;
-  /** True when proof_bytes verifies against public_values (BLAKE3 for mock, Groth16 for SP1). */
   verified: boolean;
-  /** Null = not attempted; true = proof matches; false = proof is invalid/tampered. */
+  /** Always null in new records (no ZKP in BCA path). Retained for compatibility. */
   proof_valid: boolean | null;
   error?: string;
 }
@@ -88,7 +81,6 @@ export async function fetchBcaSiteRegistry(): Promise<SiteRegistry> {
   return res.json() as Promise<SiteRegistry>;
 }
 
-/** Returns site IDs grouped by operator_id. */
 export function sitesByOperator(registry: SiteRegistry): Record<string, string[]> {
   const result: Record<string, string[]> = {};
   for (const s of registry.sites) {
@@ -98,75 +90,23 @@ export function sitesByOperator(registry: SiteRegistry): Record<string, string[]
   return result;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function b64Decode(s: string): Uint8Array {
-  const bin = atob(s);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return arr;
-}
-
-function arrEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
-
-function decodeAttestation(proof: ZkProof): GreenMarkAttestation | null {
-  try {
-    const json = atob(proof.public_values);
-    return JSON.parse(json) as GreenMarkAttestation;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Verify the ZKP proof bytes against its public values.
- *
- * Mock framework: proof_bytes = BLAKE3(public_values_bytes)
- *   → verifiable in-browser with @noble/hashes/blake3
- *
- * SP1 framework: would require Groth16 WASM verifier (not yet integrated).
- *   → currently accepted as-is (returns true) pending SP1 verifier integration.
- *
- * Returns null if verification is not supported for the framework.
- */
-function verifyProof(proof: ZkProof): boolean | null {
-  if (proof.framework === "mock") {
-    try {
-      const pubValBytes = b64Decode(proof.public_values);
-      const expected    = blake3(pubValBytes);          // 32-byte Uint8Array
-      const actual      = b64Decode(proof.proof_bytes); // should also be 32 bytes
-      return arrEqual(expected, actual);
-    } catch {
-      return false;
-    }
-  }
-  if (proof.framework === "sp1") {
-    // Groth16 in-browser verification pending SP1 WASM verifier integration
-    return null;
-  }
-  return null;
-}
-
 // ── Clarus API fetch ──────────────────────────────────────────────────────────
 
 async function fetchAuditSummary(siteId: string): Promise<{ runs: Array<{ run_id: string; record_count: number; last_seq: number }> }> {
-  // 1. Try the ZKP latest-pointer (written by the edge on every ZKP proof cycle).
-  //    This is a single GET (strongly consistent) that bypasses R2 list lag.
-  try {
-    const ptr = await fetch(`${CLARUS_AUDIT_BASE}/data/raw/zkp-latest/${encodeURIComponent(siteId)}.json`);
-    if (ptr.ok) {
-      const p = await ptr.json() as { run_id: string; last_seq: number };
-      if (p.run_id && p.last_seq != null) {
-        return { runs: [{ run_id: p.run_id, record_count: p.last_seq + 1, last_seq: p.last_seq }] };
+  // 1. Try compliance-latest pointer (clarus#124+), then zkp-latest (legacy).
+  for (const prefix of ["compliance-latest", "zkp-latest"]) {
+    try {
+      const ptr = await fetch(`${CLARUS_AUDIT_BASE}/data/raw/${prefix}/${encodeURIComponent(siteId)}.json`);
+      if (ptr.ok) {
+        const p = await ptr.json() as { run_id: string; last_seq: number };
+        if (p.run_id && p.last_seq != null) {
+          return { runs: [{ run_id: p.run_id, record_count: p.last_seq + 1, last_seq: p.last_seq }] };
+        }
       }
-    }
-  } catch { /* no pointer yet */ }
+    } catch { /* try next */ }
+  }
 
-  // 2. Try /api/audit-summary. Falls through if not yet deployed.
+  // 2. Try /api/audit-summary.
   try {
     const res = await fetch(`${CLARUS_AUDIT_BASE}/api/audit-summary?site=${encodeURIComponent(siteId)}`);
     if (res.ok) {
@@ -183,7 +123,7 @@ async function fetchAuditSummary(siteId: string): Promise<{ runs: Array<{ run_id
 
   const runMap = new Map<string, { run_id: string; record_count: number; last_seq: number }>();
   for (const key of keys) {
-    const parts = key.split("/"); // chains/{site}/{run_id}/{seq}.json
+    const parts = key.split("/");
     if (parts.length < 4) continue;
     const runId = parts[2];
     const seq = parseInt(parts[3].replace(".json", ""), 10);
@@ -203,11 +143,26 @@ async function fetchRecord(key: string): Promise<AuditRecord | null> {
   return res.json() as Promise<AuditRecord>;
 }
 
+function extractAttestation(record: AuditRecord): GreenMarkAttestation | null {
+  // New format (clarus#124+): top-level attestation field
+  if (record.attestation) return record.attestation;
+  // Legacy format: decode from zk_proof.public_values
+  if (record.zk_proof) {
+    try {
+      return JSON.parse(atob(record.zk_proof.public_values)) as GreenMarkAttestation;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 // ── Main exports ──────────────────────────────────────────────────────────────
 
 /**
- * Fetch the most recent ZKP-attested audit record for a single clarus site.
- * Scans the newest run's last few records for a `zk_proof` field.
+ * Fetch the most recent compliance attestation for a single clarus site.
+ * Reads the top-level `attestation` field; falls back to `zk_proof.public_values`
+ * for records written before clarus#124.
  */
 export async function fetchSiteAttestation(siteId: string): Promise<SiteAttestation> {
   try {
@@ -216,47 +171,42 @@ export async function fetchSiteAttestation(siteId: string): Promise<SiteAttestat
       return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, proof_valid: null, error: "no runs" };
     }
 
-    // Try newest run first; scan last 10 records for one with zk_proof
     const newestRun = runs[0];
     const startSeq = Math.max(0, newestRun.last_seq - 9);
 
     for (let seq = newestRun.last_seq; seq >= startSeq; seq--) {
       const key = `chains/${siteId}/${newestRun.run_id}/${String(seq).padStart(20, "0")}.json`;
       const record = await fetchRecord(key);
-      if (!record?.zk_proof) continue;
+      if (!record) continue;
 
-      const att = decodeAttestation(record.zk_proof);
+      const att = extractAttestation(record);
       if (!att) continue;
 
-      const proof_valid = verifyProof(record.zk_proof);
-      const verified    = proof_valid === true || proof_valid === null; // null = unverifiable (SP1 pending)
       return {
         site_id: siteId,
         attestation: att,
         record_hash: record.record_hash_hex ?? null,
         attested_at: new Date(record.timestamp_ms),
-        verified,
-        proof_valid,
+        verified: true,
+        proof_valid: null,
       };
     }
 
-    return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, proof_valid: null, error: "no zk_proof in recent records" };
+    return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, proof_valid: null, error: "no attestation in recent records" };
   } catch (e) {
     return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, proof_valid: null, error: String(e) };
   }
 }
 
 /**
- * Fetch ZKP attestations for all sites belonging to an operator.
- * `siteIds` comes from the BCA site registry or BCA portfolio parquet.
+ * Fetch compliance attestations for all sites belonging to an operator.
  */
 export async function fetchPortfolioAttestation(
   operatorId: string,
   siteIds: string[],
 ): Promise<PortfolioAttestation> {
   const sites = await Promise.all(siteIds.map(fetchSiteAttestation));
-  // Only count sites with verified proofs toward pass count
-  const passCount = sites.filter(s => s.attestation?.all_criteria_pass === true && s.proof_valid !== false).length;
+  const passCount = sites.filter(s => s.attestation?.all_criteria_pass === true).length;
 
   return {
     operator_id: operatorId,
@@ -280,7 +230,7 @@ export function certLevelLabel(level: CertLevel): string {
 }
 
 export function certLevelColor(level: CertLevel): string {
-  if (level === "platinum" || level === "gold_plus") return "#3fb950"; // green
-  if (level === "gold" || level === "certified")      return "#d29922"; // amber
-  return "#f85149"; // red
+  if (level === "platinum" || level === "gold_plus") return "#3fb950";
+  if (level === "gold" || level === "certified")      return "#d29922";
+  return "#f85149";
 }

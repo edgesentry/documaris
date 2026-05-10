@@ -9,7 +9,6 @@ import init, {
   seal,
 } from "../wasm-pkg/edgesentry_wasm.js";
 import { SG_PORT_COMPLIANCE_RULES } from "./fixtures.js";
-import { enrichBcaHtml } from "./bca-attestation.js";
 
 export interface FieldValue {
   value: string | null;
@@ -108,8 +107,6 @@ export interface BcaPipelineResult {
   filled: FilledDocument;
   alerts: ComplianceAlert[];
   html: string;
-  /** HTML enriched with ZKP attestation section from clarus. */
-  htmlWithAttestation: string;
   auditRecord: AuditRecord;
   payloadHash: string;
   durationMs: number;
@@ -219,12 +216,6 @@ export async function runBcaPipeline(
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  // 6. Enrich HTML with ZKP attestation section from clarus (non-blocking)
-  const resolvedSiteId = siteId ?? filled.fields["OUTLET_ID"]?.value ?? "";
-  const htmlWithAttestation = resolvedSiteId
-    ? await enrichBcaHtml(html, resolvedSiteId)
-    : html;
-
   const durationMs = Math.round(performance.now() - t0);
-  return { filled: filledWithReview, alerts, html, htmlWithAttestation, auditRecord, payloadHash, durationMs };
+  return { filled: filledWithReview, alerts, html, auditRecord, payloadHash, durationMs };
 }

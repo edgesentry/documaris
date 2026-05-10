@@ -282,7 +282,7 @@ export default function App() {
               <h2>BCA Green Mark — Section 4</h2>
               <div
                 className="fal-form"
-                dangerouslySetInnerHTML={{ __html: bcaResult.htmlWithAttestation }}
+                dangerouslySetInnerHTML={{ __html: bcaResult.html }}
               />
             </section>
           </div>

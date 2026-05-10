@@ -1,18 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-// @ts-ignore
-import { blake3 } from "@noble/hashes/blake3.js";
 import {
   certLevelLabel,
   certLevelColor,
   fetchSiteAttestation,
   fetchPortfolioAttestation,
   type GreenMarkAttestation,
-  type ZkProof,
 } from "./attestation.js";
-
-function b64Encode(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes));
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,24 +23,30 @@ function makeAttestation(overrides: Partial<GreenMarkAttestation> = {}): GreenMa
   };
 }
 
-function makeProof(att: GreenMarkAttestation): ZkProof {
-  const pubValJson  = JSON.stringify(att);
-  const pubValBytes = new TextEncoder().encode(pubValJson);
-  return {
-    framework:    "mock",
-    program_id:   "bca-green-mark-2021-v1-mock",
-    proof_bytes:  b64Encode(blake3(pubValBytes)),  // valid mock: blake3(public_values_bytes)
-    public_values: btoa(pubValJson),
-  };
-}
-
-function makeAuditRecord(seq: number, att?: GreenMarkAttestation) {
+// New format: top-level attestation field (clarus#124+)
+function makeRecord(seq: number, att?: GreenMarkAttestation) {
   return {
     sequence: seq,
     timestamp_ms: 1_778_000_000_000 + seq * 1000,
     rule_id: "EUI_GOLD_EXCEEDED",
     record_hash_hex: "a".repeat(64),
-    ...(att ? { zk_proof: makeProof(att) } : {}),
+    ...(att ? { attestation: att } : {}),
+  };
+}
+
+// Legacy format: zk_proof.public_values (pre-clarus#124)
+function makeLegacyRecord(seq: number, att?: GreenMarkAttestation) {
+  if (!att) return { sequence: seq, timestamp_ms: 1_778_000_000_000 + seq * 1000 };
+  return {
+    sequence: seq,
+    timestamp_ms: 1_778_000_000_000 + seq * 1000,
+    record_hash_hex: "a".repeat(64),
+    zk_proof: {
+      framework:     "mock",
+      program_id:    "bca-green-mark-2021-v1-mock",
+      proof_bytes:   btoa("unused"),
+      public_values: btoa(JSON.stringify(att)),
+    },
   };
 }
 
@@ -81,65 +80,15 @@ describe("certLevelColor", () => {
   });
 });
 
-// ── decode (inline re-implementation for unit tests) ──────────────────────────
+// ── fetchSiteAttestation — new format ─────────────────────────────────────────
 
-function decodeAttestation(proof: ZkProof): GreenMarkAttestation | null {
-  try {
-    return JSON.parse(atob(proof.public_values)) as GreenMarkAttestation;
-  } catch {
-    return null;
-  }
-}
-
-describe("decodeAttestation (base64 JSON round-trip)", () => {
-  it("round-trips a GreenMarkAttestation through base64 JSON", () => {
-    const att = makeAttestation();
-    const decoded = decodeAttestation(makeProof(att));
-    expect(decoded).not.toBeNull();
-    expect(decoded!.cert_level).toBe("gold");
-    expect(decoded!.all_criteria_pass).toBe(true);
-    expect(decoded!.site_id).toBe("MCH-OUTLET-042");
-    expect(decoded!.eui_kwh_m2).toBe(105.0);
-  });
-
-  it("returns null for invalid base64", () => {
-    const bad: ZkProof = { ...makeProof(makeAttestation()), public_values: "!!!not-base64!!!" };
-    expect(decodeAttestation(bad)).toBeNull();
-  });
-
-  it("returns null for valid base64 but non-JSON", () => {
-    const bad: ZkProof = { ...makeProof(makeAttestation()), public_values: btoa("not json") };
-    expect(decodeAttestation(bad)).toBeNull();
-  });
-
-  it("preserves all attestation fields", () => {
-    const att = makeAttestation({ cop_pass: false, period_start_ms: 999 });
-    const decoded = decodeAttestation(makeProof(att))!;
-    expect(decoded.cop_pass).toBe(false);
-    expect(decoded.period_start_ms).toBe(999);
-  });
-
-  it("violation attestation decodes correctly", () => {
-    const att = makeAttestation({ all_criteria_pass: false, cert_level: "not_certified" });
-    const decoded = decodeAttestation(makeProof(att))!;
-    expect(decoded.all_criteria_pass).toBe(false);
-    expect(decoded.cert_level).toBe("not_certified");
-  });
-});
-
-// ── fetchSiteAttestation ──────────────────────────────────────────────────────
-
-describe("fetchSiteAttestation", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+describe("fetchSiteAttestation — new format (top-level attestation)", () => {
+  beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   function mockFetch(summaryBody: object, recordBodies: Record<string, object | null>) {
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("compliance-latest") || url.includes("zkp-latest")) return { ok: false };
       if (url.includes("/api/audit-summary")) {
         return { ok: true, json: async () => summaryBody };
       }
@@ -150,31 +99,29 @@ describe("fetchSiteAttestation", () => {
     }));
   }
 
-  it("returns attestation when latest record has zk_proof", async () => {
+  it("returns attestation when latest record has top-level attestation field", async () => {
     const att = makeAttestation({ cert_level: "platinum", all_criteria_pass: true });
-    const record = makeAuditRecord(5, att);
-
     mockFetch(
       { runs: [{ run_id: "1000", record_count: 6, last_seq: 5 }] },
-      { "chains/SITE-A/1000/00000000000000000005.json": record }
+      { "chains/SITE-A/1000/00000000000000000005.json": makeRecord(5, att) }
     );
 
     const result = await fetchSiteAttestation("SITE-A");
     expect(result.attestation).not.toBeNull();
     expect(result.attestation!.cert_level).toBe("platinum");
-    expect(result.all_criteria_pass ?? result.attestation!.all_criteria_pass).toBe(true);
+    expect(result.attestation!.all_criteria_pass).toBe(true);
     expect(result.verified).toBe(true);
+    expect(result.proof_valid).toBeNull();
     expect(result.record_hash).toBe("a".repeat(64));
   });
 
-  it("scans backwards and finds zk_proof in earlier record", async () => {
+  it("scans backwards and finds attestation in earlier record", async () => {
     const att = makeAttestation({ cert_level: "gold" });
-    // seq 5 has no proof, seq 4 has proof
     mockFetch(
       { runs: [{ run_id: "1000", record_count: 6, last_seq: 5 }] },
       {
-        "chains/SITE-A/1000/00000000000000000005.json": makeAuditRecord(5), // no proof
-        "chains/SITE-A/1000/00000000000000000004.json": makeAuditRecord(4, att),
+        "chains/SITE-A/1000/00000000000000000005.json": makeRecord(5),
+        "chains/SITE-A/1000/00000000000000000004.json": makeRecord(4, att),
       }
     );
 
@@ -189,15 +136,15 @@ describe("fetchSiteAttestation", () => {
     expect(result.error).toBe("no runs");
   });
 
-  it("returns error when no zk_proof found in any recent record", async () => {
+  it("returns error when no attestation found in any recent record", async () => {
     mockFetch(
       { runs: [{ run_id: "1000", record_count: 1, last_seq: 0 }] },
-      { "chains/SITE-A/1000/00000000000000000000.json": makeAuditRecord(0) }
+      { "chains/SITE-A/1000/00000000000000000000.json": makeRecord(0) }
     );
 
     const result = await fetchSiteAttestation("SITE-A");
     expect(result.attestation).toBeNull();
-    expect(result.error).toBe("no zk_proof in recent records");
+    expect(result.error).toBe("no attestation in recent records");
   });
 
   it("returns error when fetch throws", async () => {
@@ -210,16 +157,36 @@ describe("fetchSiteAttestation", () => {
   it("attested_at is a Date derived from record.timestamp_ms", async () => {
     const att = makeAttestation();
     const ts = 1_778_000_000_000;
-    const record = { ...makeAuditRecord(0, att), timestamp_ms: ts };
-
     mockFetch(
       { runs: [{ run_id: "1000", record_count: 1, last_seq: 0 }] },
-      { "chains/SITE-A/1000/00000000000000000000.json": record }
+      { "chains/SITE-A/1000/00000000000000000000.json": { ...makeRecord(0, att), timestamp_ms: ts } }
     );
 
     const result = await fetchSiteAttestation("SITE-A");
     expect(result.attested_at).toBeInstanceOf(Date);
     expect(result.attested_at!.getTime()).toBe(ts);
+  });
+});
+
+// ── fetchSiteAttestation — legacy fallback ────────────────────────────────────
+
+describe("fetchSiteAttestation — legacy fallback (zk_proof.public_values)", () => {
+  beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
+
+  it("falls back to zk_proof.public_values for pre-clarus#124 records", async () => {
+    const att = makeAttestation({ cert_level: "certified" });
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("compliance-latest") || url.includes("zkp-latest")) return { ok: false };
+      if (url.includes("/api/audit-summary")) {
+        return { ok: true, json: async () => ({ runs: [{ run_id: "1000", record_count: 1, last_seq: 0 }] }) };
+      }
+      return { ok: true, json: async () => makeLegacyRecord(0, att) };
+    }));
+
+    const result = await fetchSiteAttestation("SITE-A");
+    expect(result.attestation?.cert_level).toBe("certified");
+    expect(result.verified).toBe(true);
   });
 });
 
@@ -234,12 +201,13 @@ describe("fetchPortfolioAttestation", () => {
     const att2 = makeAttestation({ site_id: "SITE-2", all_criteria_pass: true, cert_level: "platinum" });
 
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("compliance-latest") || url.includes("zkp-latest")) return { ok: false };
       const siteId = url.includes("SITE-1") ? "SITE-1" : "SITE-2";
       if (url.includes("/api/audit-summary")) {
         return { ok: true, json: async () => ({ runs: [{ run_id: "1000", record_count: 1, last_seq: 0 }] }) };
       }
       const att = siteId === "SITE-1" ? att1 : att2;
-      return { ok: true, json: async () => makeAuditRecord(0, att) };
+      return { ok: true, json: async () => makeRecord(0, att) };
     }));
 
     const portfolio = await fetchPortfolioAttestation("OP-001", ["SITE-1", "SITE-2"]);
@@ -249,18 +217,18 @@ describe("fetchPortfolioAttestation", () => {
     expect(portfolio.sites).toHaveLength(2);
   });
 
-  it("all_pass is false when any site fails", async () => {
+  it("all_pass is false when any site fails criteria", async () => {
     const passing = makeAttestation({ all_criteria_pass: true });
     const failing = makeAttestation({ all_criteria_pass: false, cert_level: "not_certified" });
 
     let callIndex = 0;
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-      if (url.includes("zkp-latest")) return { ok: false };
+      if (url.includes("compliance-latest") || url.includes("zkp-latest")) return { ok: false };
       if (url.includes("/api/audit-summary")) {
         return { ok: true, json: async () => ({ runs: [{ run_id: "1000", record_count: 1, last_seq: 0 }] }) };
       }
       const att = callIndex++ === 0 ? passing : failing;
-      return { ok: true, json: async () => makeAuditRecord(0, att) };
+      return { ok: true, json: async () => makeRecord(0, att) };
     }));
 
     const portfolio = await fetchPortfolioAttestation("OP-001", ["SITE-1", "SITE-2"]);
