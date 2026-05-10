@@ -4,6 +4,26 @@ Multi-profile document generation and compliance automation platform. documaris 
 
 Supported profiles: `fal-form-1` / `fal-form-5` (maritime port call, PIER71), `sg-bca-greenmark` (BCA Green Mark Section 4, BEAMP). Same pipeline core — only the parser, field map, HTML template, and rules differ per profile.
 
+## Responsibility boundary
+
+documaris is the **operator-facing UI and compliance document platform**.
+
+```
+documaris owns:
+  - Compliance document generation (FAL forms, BCA Green Mark reports)
+  - Operator portfolio UI (browser-side, DuckDB WASM, zero server cost)
+  - Browser-side ZKP attestation verification (@noble/hashes/blake3)
+
+documaris does NOT own:
+  - Proof data or WORM chain storage (→ clarus R2)
+  - B2B verification endpoints (→ clarus /api/verify)
+  - ZKP proof generation (→ clarus edge daemon)
+  - Domain-agnostic crypto primitives (→ edgesentry-rs eds-zkp)
+```
+
+Generated compliance documents embed `verify_url` pointing to `clarus.edgesentry.io/api/verify`
+so recipients can independently verify without going through documaris.
+
 ## Related repos
 
 | Repo | Role | Relationship |
@@ -11,7 +31,7 @@ Supported profiles: `fal-form-1` / `fal-form-5` (maritime port call, PIER71), `s
 | [indago](https://github.com/edgesentry/indago) | Data layer | Writes vessel/voyage/cargo Parquet to documaris R2 bucket — documaris reads from it |
 | [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) | Audit chain | Trust Layer reuses `edgesentry-audit` crate (BLAKE3 + Ed25519) |
 | [arktrace](https://github.com/edgesentry/arktrace) | Shadow fleet detection | Shares the same vessel entity (MMSI); documaris closes the compliance loop |
-| [clarus](https://github.com/edgesentry/clarus) | Profile-switchable safety monitoring | Sister product — `?mmsi=` deep-link cross-navigation |
+| [clarus](https://github.com/edgesentry/clarus) | Data + verification layer | Owns WORM chain, ZKP proofs, and B2B `/api/verify` endpoint — documaris reads from it |
 
 ## Directory map
 
