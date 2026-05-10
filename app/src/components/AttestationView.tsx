@@ -101,16 +101,18 @@ function SiteRow({ site }: { site: SiteAttestation }) {
         {/* Site */}
         <td style={{ padding: "12px 16px" }}>
           <div style={{ fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>{site.site_id}</div>
-          {att && (
-            <div style={{ fontSize: 11, color: "#8b949e", marginTop: 2 }}>
-              {CERT_DESCRIPTIONS[att.cert_level]}
-            </div>
-          )}
         </td>
 
         {/* Certification level */}
         <td style={{ padding: "12px 16px" }}>
-          {att ? <CertBadge level={att.cert_level} /> : <span style={{ color: "#8b949e", fontSize: 12 }}>—</span>}
+          {att ? (
+            <>
+              <CertBadge level={att.cert_level} />
+              <div style={{ fontSize: 11, color: "#8b949e", marginTop: 4 }}>
+                {CERT_DESCRIPTIONS[att.cert_level]}
+              </div>
+            </>
+          ) : <span style={{ color: "#8b949e", fontSize: 12 }}>—</span>}
         </td>
 
         {/* EUI */}
