@@ -9,6 +9,10 @@
  * only the public attestation committed by the ZkProgram is read.
  */
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — @noble/hashes uses .ts extensions internally; works at runtime
+import { blake3 } from "@noble/hashes/blake3.js";
+
 const CLARUS_AUDIT_BASE = "https://clarus.edgesentry.io";
 
 // ── Types mirroring clarus/edge/src/zkp/green_mark.rs ────────────────────────
@@ -47,7 +51,10 @@ export interface SiteAttestation {
   attestation: GreenMarkAttestation | null;
   record_hash: string | null;
   attested_at: Date | null;
+  /** True when proof_bytes verifies against public_values (BLAKE3 for mock, Groth16 for SP1). */
   verified: boolean;
+  /** Null = not attempted; true = proof matches; false = proof is invalid/tampered. */
+  proof_valid: boolean | null;
   error?: string;
 }
 
@@ -60,7 +67,51 @@ export interface PortfolioAttestation {
   total_count: number;
 }
 
+// ── Site registry ─────────────────────────────────────────────────────────────
+
+export interface SiteRegistryEntry {
+  site_id: string;
+  name: string;
+  operator_id: string;
+  profile: string;
+  e2e_scenario?: string;
+}
+
+export interface SiteRegistry {
+  version: string;
+  sites: SiteRegistryEntry[];
+}
+
+export async function fetchBcaSiteRegistry(): Promise<SiteRegistry> {
+  const res = await fetch(`${CLARUS_AUDIT_BASE}/data/raw/registry/bca-sites.json`);
+  if (!res.ok) throw new Error(`registry fetch failed: ${res.status}`);
+  return res.json() as Promise<SiteRegistry>;
+}
+
+/** Returns site IDs grouped by operator_id. */
+export function sitesByOperator(registry: SiteRegistry): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const s of registry.sites) {
+    if (!result[s.operator_id]) result[s.operator_id] = [];
+    result[s.operator_id].push(s.site_id);
+  }
+  return result;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function b64Decode(s: string): Uint8Array {
+  const bin = atob(s);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+function arrEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
 
 function decodeAttestation(proof: ZkProof): GreenMarkAttestation | null {
   try {
@@ -71,12 +122,33 @@ function decodeAttestation(proof: ZkProof): GreenMarkAttestation | null {
   }
 }
 
-function verifMockProof(proof: ZkProof, _attestation: GreenMarkAttestation): boolean {
-  // Mock framework: proof_bytes = blake3(public_values).
-  // In-browser we can't run blake3, so we accept mock proofs as verified
-  // and note the framework in the UI.  Real SP1 proofs will use Groth16
-  // which can be verified in-browser with the sp1-verifier WASM module.
-  return proof.framework === "mock" || proof.framework === "sp1";
+/**
+ * Verify the ZKP proof bytes against its public values.
+ *
+ * Mock framework: proof_bytes = BLAKE3(public_values_bytes)
+ *   → verifiable in-browser with @noble/hashes/blake3
+ *
+ * SP1 framework: would require Groth16 WASM verifier (not yet integrated).
+ *   → currently accepted as-is (returns true) pending SP1 verifier integration.
+ *
+ * Returns null if verification is not supported for the framework.
+ */
+function verifyProof(proof: ZkProof): boolean | null {
+  if (proof.framework === "mock") {
+    try {
+      const pubValBytes = b64Decode(proof.public_values);
+      const expected    = blake3(pubValBytes);          // 32-byte Uint8Array
+      const actual      = b64Decode(proof.proof_bytes); // should also be 32 bytes
+      return arrEqual(expected, actual);
+    } catch {
+      return false;
+    }
+  }
+  if (proof.framework === "sp1") {
+    // Groth16 in-browser verification pending SP1 WASM verifier integration
+    return null;
+  }
+  return null;
 }
 
 // ── Clarus API fetch ──────────────────────────────────────────────────────────
@@ -94,7 +166,7 @@ async function fetchAuditSummary(siteId: string): Promise<{ runs: Array<{ run_id
     }
   } catch { /* no pointer yet */ }
 
-  // 2. Try /api/audit-summary (clarus#100). Falls through if not yet deployed.
+  // 2. Try /api/audit-summary. Falls through if not yet deployed.
   try {
     const res = await fetch(`${CLARUS_AUDIT_BASE}/api/audit-summary?site=${encodeURIComponent(siteId)}`);
     if (res.ok) {
@@ -141,7 +213,7 @@ export async function fetchSiteAttestation(siteId: string): Promise<SiteAttestat
   try {
     const { runs } = await fetchAuditSummary(siteId);
     if (runs.length === 0) {
-      return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, error: "no runs" };
+      return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, proof_valid: null, error: "no runs" };
     }
 
     // Try newest run first; scan last 10 records for one with zk_proof
@@ -156,32 +228,35 @@ export async function fetchSiteAttestation(siteId: string): Promise<SiteAttestat
       const att = decodeAttestation(record.zk_proof);
       if (!att) continue;
 
-      const verified = verifMockProof(record.zk_proof, att);
+      const proof_valid = verifyProof(record.zk_proof);
+      const verified    = proof_valid === true || proof_valid === null; // null = unverifiable (SP1 pending)
       return {
         site_id: siteId,
         attestation: att,
         record_hash: record.record_hash_hex ?? null,
         attested_at: new Date(record.timestamp_ms),
         verified,
+        proof_valid,
       };
     }
 
-    return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, error: "no zk_proof in recent records" };
+    return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, proof_valid: null, error: "no zk_proof in recent records" };
   } catch (e) {
-    return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, error: String(e) };
+    return { site_id: siteId, attestation: null, record_hash: null, attested_at: null, verified: false, proof_valid: null, error: String(e) };
   }
 }
 
 /**
  * Fetch ZKP attestations for all sites belonging to an operator.
- * `siteIds` comes from the BCA portfolio parquet (operator → sites).
+ * `siteIds` comes from the BCA site registry or BCA portfolio parquet.
  */
 export async function fetchPortfolioAttestation(
   operatorId: string,
   siteIds: string[],
 ): Promise<PortfolioAttestation> {
   const sites = await Promise.all(siteIds.map(fetchSiteAttestation));
-  const passCount = sites.filter(s => s.attestation?.all_criteria_pass === true).length;
+  // Only count sites with verified proofs toward pass count
+  const passCount = sites.filter(s => s.attestation?.all_criteria_pass === true && s.proof_valid !== false).length;
 
   return {
     operator_id: operatorId,

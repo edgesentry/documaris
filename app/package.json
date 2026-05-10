@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
+    "@noble/hashes": "^2.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
