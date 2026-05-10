@@ -174,12 +174,7 @@ function SiteRow({ site }: { site: SiteAttestation }) {
                       {att.lpd_pass ? "✓ Meets standard (≤ 15 W/m²)" : "✗ Above limit (> 15 W/m²)"}
                     </span>
 
-                    <span style={{ color: "#8b949e" }}>Proof integrity</span>
-                    <span style={{ color: site.proof_valid === true ? "#3fb950" : site.proof_valid === false ? "#f85149" : "#8b949e", fontWeight: 600 }}>
-                      {site.proof_valid === true  ? "✓ Verified" :
-                       site.proof_valid === false ? "✗ Tampered" :
-                                                    "Pending"}
-                    </span>
+
                   </div>
                 </div>
 

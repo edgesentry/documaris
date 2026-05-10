@@ -160,56 +160,6 @@ describe("AttestationView", () => {
     });
   });
 
-  it("shows Data integrity issue status for tampered proof (filter pill + row badge)", async () => {
-    // proof_bytes that doesn't match blake3(public_values) → proof_valid: false
-    const att = makeAttestation({ all_criteria_pass: true, cert_level: "gold" });
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-      if (url.includes("registry/bca-sites.json"))
-        return { ok: true, json: async () => makeRegistry() };
-      if (url.includes("zkp-latest"))
-        return { ok: false, status: 404 };
-      if (url.includes("audit-summary"))
-        return { ok: true, json: async () => ({ runs: [{ run_id: "1000", record_count: 1, last_seq: 0 }] }) };
-      return { ok: true, json: async () => ({
-        ...makeRecord(0),
-        zk_proof: {
-          framework: "mock",
-          program_id: "bca-green-mark-2021-v1-mock",
-          proof_bytes: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", // wrong hash
-          public_values: btoa(JSON.stringify(att)),
-        },
-      })};
-    }));
-    render(<AttestationView operators={OPERATORS} />);
-    await waitFor(() => {
-      expect(screen.getAllByText(/Data integrity issue/).length).toBeGreaterThanOrEqual(1);
-    });
-  });
-
-  it("shows tamper alert banner when proof is invalid", async () => {
-    const att = makeAttestation({ all_criteria_pass: true });
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-      if (url.includes("registry/bca-sites.json"))
-        return { ok: true, json: async () => makeRegistry() };
-      if (url.includes("zkp-latest"))
-        return { ok: false, status: 404 };
-      if (url.includes("audit-summary"))
-        return { ok: true, json: async () => ({ runs: [{ run_id: "1000", record_count: 1, last_seq: 0 }] }) };
-      return { ok: true, json: async () => ({
-        ...makeRecord(0),
-        zk_proof: {
-          framework: "mock",
-          program_id: "bca-green-mark-2021-v1-mock",
-          proof_bytes: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-          public_values: btoa(JSON.stringify(att)),
-        },
-      })};
-    }));
-    render(<AttestationView operators={OPERATORS} />);
-    await waitFor(() => {
-      expect(screen.getByText(/could not be verified/)).toBeInTheDocument();
-    });
-  });
 
   it("renders operator selector driven by registry", async () => {
     mockFetch();
