@@ -15,11 +15,11 @@ import type { OperatorSummary } from "../lib/bcaData.js";
 // ── Cert level display ────────────────────────────────────────────────────────
 
 const CERT_DESCRIPTIONS: Record<CertLevel, string> = {
-  platinum:      "BCA Green Mark Platinum — 最高水準のエネルギー効率",
-  gold_plus:     "BCA Green Mark GoldPlus — 優秀なエネルギー効率",
-  gold:          "BCA Green Mark Gold — 良好なエネルギー効率",
-  certified:     "BCA Green Mark Certified — 基準を満たす",
-  not_certified: "非認定 — BCA基準を満たしていません",
+  platinum:      "Highest energy efficiency — BCA Green Mark Platinum",
+  gold_plus:     "Excellent energy efficiency — BCA Green Mark GoldPlus",
+  gold:          "Good energy efficiency — BCA Green Mark Gold",
+  certified:     "Meets the BCA Green Mark standard — Certified",
+  not_certified: "Does not meet BCA Green Mark requirements",
 };
 
 function CertBadge({ level }: { level: CertLevel }) {
@@ -39,46 +39,46 @@ function CertBadge({ level }: { level: CertLevel }) {
   );
 }
 
-// ── Trust status badge ────────────────────────────────────────────────────────
+// ── Compliance status ─────────────────────────────────────────────────────────
 
-function TrustBadge({ proof_valid, all_criteria_pass }: { proof_valid: boolean | null; all_criteria_pass: boolean | undefined }) {
+function StatusBadge({ proof_valid, all_criteria_pass }: { proof_valid: boolean | null; all_criteria_pass: boolean | undefined }) {
   if (proof_valid === false) {
     return (
       <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
+        display: "inline-flex", alignItems: "center", gap: 5,
         color: "#f85149", fontSize: 12, fontWeight: 700,
         background: "rgba(248,81,73,0.12)", border: "1px solid rgba(248,81,73,0.4)",
         borderRadius: 10, padding: "3px 10px",
       }}>
-        ⚠ データ信頼性に問題あり
+        ⚠ Data integrity issue
       </span>
     );
   }
   if (all_criteria_pass === true) {
     return (
       <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
+        display: "inline-flex", alignItems: "center", gap: 5,
         color: "#3fb950", fontSize: 12, fontWeight: 700,
         background: "rgba(63,185,80,0.12)", border: "1px solid rgba(63,185,80,0.4)",
         borderRadius: 10, padding: "3px 10px",
       }}>
-        ✓ 認証取得済み
+        ✓ Certified
       </span>
     );
   }
   if (all_criteria_pass === false) {
     return (
       <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
+        display: "inline-flex", alignItems: "center", gap: 5,
         color: "#d29922", fontSize: 12, fontWeight: 600,
         background: "rgba(210,153,34,0.12)", border: "1px solid rgba(210,153,34,0.4)",
         borderRadius: 10, padding: "3px 10px",
       }}>
-        — 基準未達
+        — Below standard
       </span>
     );
   }
-  return <span style={{ color: "#8b949e", fontSize: 12 }}>確認中</span>;
+  return <span style={{ color: "#8b949e", fontSize: 12 }}>Pending</span>;
 }
 
 // ── Site row ──────────────────────────────────────────────────────────────────
@@ -98,7 +98,7 @@ function SiteRow({ site }: { site: SiteAttestation }) {
           borderLeft: isTampered ? "3px solid #f85149" : "3px solid transparent",
         }}
       >
-        {/* Site name */}
+        {/* Site */}
         <td style={{ padding: "12px 16px" }}>
           <div style={{ fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>{site.site_id}</div>
           {att && (
@@ -122,16 +122,15 @@ function SiteRow({ site }: { site: SiteAttestation }) {
           ) : "—"}
         </td>
 
-        {/* Compliance status */}
+        {/* Status */}
         <td style={{ padding: "12px 16px" }}>
-          <TrustBadge proof_valid={site.proof_valid} all_criteria_pass={att?.all_criteria_pass} />
+          <StatusBadge proof_valid={site.proof_valid} all_criteria_pass={att?.all_criteria_pass} />
         </td>
 
-        {/* Last verified */}
+        {/* Verified at */}
         <td style={{ padding: "12px 16px", fontSize: 12, color: "#8b949e" }}>
           {site.attested_at
-            ? site.attested_at.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" })
-              + " " + site.attested_at.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
+            ? site.attested_at.toISOString().slice(0, 16).replace("T", " ") + " UTC"
             : "—"}
         </td>
 
@@ -147,84 +146,82 @@ function SiteRow({ site }: { site: SiteAttestation }) {
             borderBottom: "1px solid #30363d",
           }}>
             {att ? (
-              <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 40, flexWrap: "wrap" }}>
 
-                {/* Criteria detail */}
+                {/* Criteria */}
                 <div>
                   <div style={{ fontSize: 11, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                    BCA基準チェック項目
+                    BCA Compliance Criteria
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "6px 20px", fontSize: 13 }}>
-                    <span style={{ color: "#8b949e" }}>エネルギー使用強度（EUI）</span>
-                    <span style={{ color: att.cop_pass ? "#e6edf3" : "#f85149" }}>
-                      {att.eui_kwh_m2.toFixed(1)} kWh/m²/年
+                  <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "6px 24px", fontSize: 13 }}>
+                    <span style={{ color: "#8b949e" }}>Energy Use Intensity (EUI)</span>
+                    <span>
+                      {att.eui_kwh_m2.toFixed(1)} kWh/m²/yr
                       <span style={{ marginLeft: 8, fontSize: 11, color: certLevelColor(att.cert_level) }}>
                         ({certLevelLabel(att.cert_level)})
                       </span>
                     </span>
 
-                    <span style={{ color: "#8b949e" }}>冷凍機効率（COP）</span>
+                    <span style={{ color: "#8b949e" }}>Chiller Efficiency (COP)</span>
                     <span style={{ color: att.cop_pass ? "#3fb950" : "#f85149" }}>
-                      {att.cop_pass ? "✓ 基準達成（≥ 0.65）" : "✗ 基準未達（< 0.65）"}
+                      {att.cop_pass ? "✓ Meets standard (≥ 0.65)" : "✗ Below standard (< 0.65)"}
                     </span>
 
-                    <span style={{ color: "#8b949e" }}>照明電力密度（LPD）</span>
+                    <span style={{ color: "#8b949e" }}>Lighting Power Density (LPD)</span>
                     <span style={{ color: att.lpd_pass ? "#3fb950" : "#f85149" }}>
-                      {att.lpd_pass ? "✓ 基準達成（≤ 15 W/m²）" : "✗ 基準未達（> 15 W/m²）"}
+                      {att.lpd_pass ? "✓ Meets standard (≤ 15 W/m²)" : "✗ Above limit (> 15 W/m²)"}
                     </span>
                   </div>
                 </div>
 
                 {/* Data integrity */}
-                <div>
+                <div style={{ maxWidth: 340 }}>
                   <div style={{ fontSize: 11, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                    データの信頼性
+                    Data Integrity
                   </div>
-                  <div style={{ fontSize: 13 }}>
-                    {site.proof_valid === true && (
-                      <div style={{ color: "#3fb950" }}>
-                        ✓ 数値が改ざんされていないことを数学的に検証済み
-                        <div style={{ fontSize: 11, color: "#8b949e", marginTop: 4 }}>
-                          エネルギー計算の元データ（生センサー値）はエッジデバイス内に保持され、
-                          外部に送信されることなく、計算結果のみが認証記録として保存されています。
-                        </div>
+                  {site.proof_valid === true && (
+                    <div style={{ fontSize: 13, color: "#3fb950" }}>
+                      ✓ Figures verified — not altered since measurement
+                      <div style={{ fontSize: 11, color: "#8b949e", marginTop: 4, lineHeight: 1.5 }}>
+                        Raw sensor data stays on the edge device and is never transmitted.
+                        Only the computed result — with a mathematical proof of correctness — is stored in the audit record.
                       </div>
-                    )}
-                    {site.proof_valid === false && (
-                      <div style={{ color: "#f85149" }}>
-                        ⚠ 認証データの整合性が確認できません
-                        <div style={{ fontSize: 11, color: "#f85149", marginTop: 4, opacity: 0.8 }}>
-                          申告されている認証レベルと、実際の計算証明が一致していません。
-                          このデータに基づいて認証を発行することはできません。
-                        </div>
+                    </div>
+                  )}
+                  {site.proof_valid === false && (
+                    <div style={{ fontSize: 13, color: "#f85149" }}>
+                      ⚠ Cannot confirm data integrity
+                      <div style={{ fontSize: 11, color: "#f85149", opacity: 0.85, marginTop: 4, lineHeight: 1.5 }}>
+                        The claimed certification level does not match the mathematical proof attached to this record.
+                        This submission cannot be used as the basis for issuing a Green Mark certificate.
                       </div>
-                    )}
-                    {site.proof_valid === null && (
-                      <div style={{ color: "#8b949e" }}>
-                        次世代の検証方式（SP1）への移行準備中です。現在は自動確認できません。
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+                  {site.proof_valid === null && (
+                    <div style={{ fontSize: 13, color: "#8b949e" }}>
+                      Automatic verification not yet available for this proof type.
+                    </div>
+                  )}
                 </div>
 
                 {/* Audit trail */}
                 <div>
                   <div style={{ fontSize: 11, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                    監査記録
+                    Audit Record
                   </div>
-                  <div style={{ fontSize: 12, color: "#8b949e" }}>
-                    <div>記録ID: <span style={{ fontFamily: "monospace", fontSize: 11 }}>{site.record_hash?.slice(0, 16) ?? "—"}…</span></div>
-                    <div style={{ marginTop: 4 }}>この記録は改ざん防止ストレージに保存されており、後から変更・削除することはできません。</div>
+                  <div style={{ fontSize: 12, color: "#8b949e", lineHeight: 1.6 }}>
+                    <div>Record ID: <span style={{ fontFamily: "monospace", fontSize: 11 }}>{site.record_hash?.slice(0, 16) ?? "—"}…</span></div>
+                    <div style={{ marginTop: 4 }}>Stored in tamper-evident, deletion-proof storage. Cannot be modified after the fact.</div>
                   </div>
                 </div>
               </div>
             ) : (
               <div style={{ color: "#8b949e", fontSize: 13 }}>
                 {site.error === "no runs"
-                  ? "このサイトの認証記録がまだありません。"
+                  ? "No certification records found for this site."
                   : site.error === "no zk_proof in recent records"
-                  ? "直近の記録に認証データが含まれていません。"
-                  : `データ取得エラー: ${site.error}`}
+                  ? "The most recent record does not include a certification proof."
+                  : `Could not retrieve data: ${site.error}`}
               </div>
             )}
           </td>
@@ -237,10 +234,9 @@ function SiteRow({ site }: { site: SiteAttestation }) {
 // ── Summary banner ────────────────────────────────────────────────────────────
 
 function SummaryBanner({ portfolio }: { portfolio: PortfolioAttestation }) {
-  const tamperCount  = portfolio.sites.filter(s => s.proof_valid === false).length;
-  const passCount    = portfolio.pass_count;
-  const total        = portfolio.total_count;
-  const honestTotal  = total - tamperCount;
+  const tamperCount = portfolio.sites.filter(s => s.proof_valid === false).length;
+  const passCount   = portfolio.pass_count;
+  const total       = portfolio.total_count;
 
   if (tamperCount > 0) {
     return (
@@ -251,17 +247,17 @@ function SummaryBanner({ portfolio }: { portfolio: PortfolioAttestation }) {
         <span style={{ fontSize: 24, lineHeight: 1 }}>🚨</span>
         <div>
           <div style={{ fontWeight: 700, fontSize: 15, color: "#f85149" }}>
-            {tamperCount}件のデータ申告に問題が検出されました
+            {tamperCount} submission{tamperCount > 1 ? "s" : ""} could not be verified
           </div>
           <div style={{ fontSize: 13, color: "#8b949e", marginTop: 4 }}>
-            信頼性が確認できた {honestTotal} 件のうち、{passCount} 件が BCA Green Mark 基準を満たしています。
-            問題のある申告は認証対象から除外されます。
+            Of the {total - tamperCount} verified submissions, {passCount} meet{passCount === 1 ? "s" : ""} the BCA Green Mark standard.
+            Unverified submissions are excluded from certification.
           </div>
         </div>
         <div style={{ marginLeft: "auto", alignSelf: "center", fontSize: 11, color: "#d29922",
           background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.3)",
           padding: "4px 12px", borderRadius: 12, whiteSpace: "nowrap" }}>
-          🔒 記録は削除・変更不可
+          🔒 Records cannot be deleted or altered
         </div>
       </div>
     );
@@ -279,18 +275,18 @@ function SummaryBanner({ portfolio }: { portfolio: PortfolioAttestation }) {
       <div>
         <div style={{ fontWeight: 700, fontSize: 15 }}>
           {portfolio.all_pass
-            ? `全 ${total} 件が BCA Green Mark 基準を達成しています`
-            : `${total} 件中 ${passCount} 件が BCA Green Mark 基準を達成しています`}
+            ? `All ${total} sites meet the BCA Green Mark standard`
+            : `${passCount} of ${total} sites meet the BCA Green Mark standard`}
         </div>
         <div style={{ fontSize: 13, color: "#8b949e", marginTop: 4 }}>
-          すべての認証データの整合性が確認されています ·
-          確認日時: {portfolio.generated_at.toLocaleString("ja-JP")}
+          All data integrity checks passed ·
+          Verified {portfolio.generated_at.toISOString().slice(0, 16).replace("T", " ")} UTC
         </div>
       </div>
       <div style={{ marginLeft: "auto", alignSelf: "center", fontSize: 11, color: "#d29922",
         background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.3)",
         padding: "4px 12px", borderRadius: 12, whiteSpace: "nowrap" }}>
-        🔒 記録は削除・変更不可
+        🔒 Records cannot be deleted or altered
       </div>
     </div>
   );
@@ -340,31 +336,31 @@ export function AttestationView({ operators }: Props) {
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
-            BCA Green Mark 認証ポートフォリオ
+            BCA Green Mark Portfolio
           </h2>
           <span style={{
             background: "rgba(63,185,80,0.1)", color: "#3fb950",
             border: "1px solid rgba(63,185,80,0.3)", borderRadius: 12,
             fontSize: 11, fontWeight: 700, padding: "2px 10px",
           }}>
-            改ざん防止記録
+            Tamper-proof records
           </span>
         </div>
         <p style={{ fontSize: 13, color: "#8b949e", margin: 0, lineHeight: 1.6 }}>
-          エッジデバイスが収集したエネルギーデータをもとに、BCA Green Mark 2021 の基準適合状況を自動で検証します。
-          生の計測値は外部に送信されず、計算結果の正当性のみが改ざん不可能な記録として保存されます。
+          Compliance status verified automatically from energy data collected at each site.
+          Raw measurements stay on the device — only the computed result, with proof that the calculation is correct, is stored in the audit record.
         </p>
       </div>
 
       {registryError && (
         <div style={{ color: "#f85149", fontSize: 13, marginBottom: 16 }}>
-          サイト一覧の取得に失敗しました: {registryError}
+          Could not load site list: {registryError}
         </div>
       )}
 
       {/* Operator selector */}
       <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-        <label style={{ fontSize: 13, color: "#8b949e" }}>事業者</label>
+        <label style={{ fontSize: 13, color: "#8b949e" }}>Operator</label>
         <select
           value={selectedOperator}
           onChange={e => setSelectedOperator(e.target.value)}
@@ -375,12 +371,12 @@ export function AttestationView({ operators }: Props) {
         >
           {Object.entries(operatorSiteMap).map(([opId, sites]) => (
             <option key={opId} value={opId}>
-              {opId}（{sites.length} サイト）
+              {opId} ({sites.length} site{sites.length !== 1 ? "s" : ""})
             </option>
           ))}
           {!registry && operators.map(op => (
             <option key={op.operator_id} value={op.operator_id}>
-              {op.operator_id}（{op.site_count} サイト）
+              {op.operator_id} ({op.site_count} site{op.site_count !== 1 ? "s" : ""})
             </option>
           ))}
         </select>
@@ -392,7 +388,7 @@ export function AttestationView({ operators }: Props) {
       {/* Loading */}
       {loading && (
         <div style={{ color: "#8b949e", fontSize: 13, padding: "48px 0", textAlign: "center" }}>
-          認証記録を確認中…
+          Retrieving certification records…
         </div>
       )}
 
@@ -405,16 +401,16 @@ export function AttestationView({ operators }: Props) {
             <thead>
               <tr style={{ borderBottom: "1px solid #30363d" }}>
                 {[
-                  { label: "サイト", width: "auto" },
-                  { label: "認証レベル", width: 140 },
-                  { label: "EUI (kWh/m²/年)", width: 130 },
-                  { label: "認証ステータス", width: 160 },
-                  { label: "最終確認日時", width: 130 },
-                  { label: "", width: 32 },
-                ].map(({ label, width }) => (
+                  "Site",
+                  "Certification Level",
+                  "EUI (kWh/m²/yr)",
+                  "Status",
+                  "Verified At",
+                  "",
+                ].map(label => (
                   <th key={label} style={{
                     fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em",
-                    color: "#8b949e", padding: "10px 16px", textAlign: "left", width,
+                    color: "#8b949e", padding: "10px 16px", textAlign: "left",
                   }}>
                     {label}
                   </th>
@@ -430,22 +426,23 @@ export function AttestationView({ operators }: Props) {
         </div>
       )}
 
-      {/* Note at bottom */}
+      {/* Footer note */}
       <div style={{
         marginTop: 20, padding: "12px 16px",
         background: "rgba(88,166,255,0.04)", border: "1px solid rgba(88,166,255,0.15)",
         borderRadius: 8, fontSize: 12, color: "#8b949e", lineHeight: 1.6,
       }}>
-        <span style={{ color: "#58a6ff", fontWeight: 600 }}>ℹ 仕組みについて</span>
-        {" "}各サイトのエッジデバイスが計算した認証結果は、数学的証明とともに改ざん防止ストレージに記録されます。
-        第三者機関（BCA）はこの記録を参照することで、生の計測データを受け取ることなく認証の正当性を確認できます。
+        <span style={{ color: "#58a6ff", fontWeight: 600 }}>How this works</span>
+        {" — "}
+        Each site's edge device computes the energy compliance result and stores it with a mathematical proof in a tamper-evident record.
+        BCA can verify the result without ever receiving the raw sensor data.
         <a
           href={`/api/bca-portfolio/${encodeURIComponent(selectedOperator)}`}
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "#58a6ff", marginLeft: 8 }}
         >
-          JSON形式で出力 →
+          Export as JSON →
         </a>
       </div>
     </div>
