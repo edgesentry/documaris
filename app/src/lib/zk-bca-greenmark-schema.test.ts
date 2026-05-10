@@ -14,13 +14,13 @@ import { blake3 } from "@noble/hashes/blake3.js";
 import type { GreenMarkAttestation, ZkProof } from "./attestation.js";
 
 // Load schema from clarus repo (sibling directory — see AGENTS.md checkout requirement)
-const schemaPath = resolve(__dirname, "../../../../clarus/schemas/zk-attestation.json");
+const schemaPath = resolve(__dirname, "../../../../clarus/schemas/zk-bca-greenmark.json");
 const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
 
 const ajv = new Ajv({ strict: true });
 ajv.addSchema(schema);
-const validateZkProof = ajv.compile({ $ref: "https://clarus.edgesentry.io/schemas/zk-attestation.json#/$defs/ZkProof" });
-const validateAttestation = ajv.compile({ $ref: "https://clarus.edgesentry.io/schemas/zk-attestation.json#/$defs/GreenMarkAttestation" });
+const validateZkProof = ajv.compile({ $ref: "https://clarus.edgesentry.io/schemas/zk-bca-greenmark.json#/$defs/ZkProof" });
+const validateAttestation = ajv.compile({ $ref: "https://clarus.edgesentry.io/schemas/zk-bca-greenmark.json#/$defs/GreenMarkAttestation" });
 
 // ── Fixture helpers (mirror of attestation.test.ts) ───────────────────────────
 
