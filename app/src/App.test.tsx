@@ -438,7 +438,7 @@ describe("App — BCA document generation", () => {
   it("calls runBcaPipeline with the selected site's CSV", async () => {
     await generateBcaDoc();
     expect(vi.mocked(runBcaPipeline)).toHaveBeenCalledOnce();
-    expect(vi.mocked(runBcaPipeline)).toHaveBeenCalledWith(MOCK_BCA_SCENARIO.csv);
+    expect(vi.mocked(runBcaPipeline)).toHaveBeenCalledWith(MOCK_BCA_SCENARIO.csv, expect.any(String));
   });
 
   it("shows the BCA Section 4 document heading in result", async () => {
