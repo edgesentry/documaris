@@ -12,15 +12,23 @@ import {
 } from "../lib/attestation.js";
 import type { OperatorSummary } from "../lib/bcaData.js";
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Cert level display ────────────────────────────────────────────────────────
+
+const CERT_DESCRIPTIONS: Record<CertLevel, string> = {
+  platinum:      "BCA Green Mark Platinum — 最高水準のエネルギー効率",
+  gold_plus:     "BCA Green Mark GoldPlus — 優秀なエネルギー効率",
+  gold:          "BCA Green Mark Gold — 良好なエネルギー効率",
+  certified:     "BCA Green Mark Certified — 基準を満たす",
+  not_certified: "非認定 — BCA基準を満たしていません",
+};
 
 function CertBadge({ level }: { level: CertLevel }) {
   return (
     <span style={{
       display: "inline-block",
-      padding: "2px 10px",
+      padding: "3px 12px",
       borderRadius: 10,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: 700,
       background: certLevelColor(level) + "22",
       color: certLevelColor(level),
@@ -31,11 +39,49 @@ function CertBadge({ level }: { level: CertLevel }) {
   );
 }
 
-function ProofBadge({ proof_valid }: { proof_valid: boolean | null }) {
-  if (proof_valid === true)  return <span style={{ color: "#3fb950", fontSize: 11, fontWeight: 700 }}>✓ valid</span>;
-  if (proof_valid === false) return <span style={{ color: "#f85149", fontSize: 11, fontWeight: 700 }}>✗ TAMPERED</span>;
-  return <span style={{ color: "#8b949e", fontSize: 11 }}>SP1 (pending)</span>;
+// ── Trust status badge ────────────────────────────────────────────────────────
+
+function TrustBadge({ proof_valid, all_criteria_pass }: { proof_valid: boolean | null; all_criteria_pass: boolean | undefined }) {
+  if (proof_valid === false) {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        color: "#f85149", fontSize: 12, fontWeight: 700,
+        background: "rgba(248,81,73,0.12)", border: "1px solid rgba(248,81,73,0.4)",
+        borderRadius: 10, padding: "3px 10px",
+      }}>
+        ⚠ データ信頼性に問題あり
+      </span>
+    );
+  }
+  if (all_criteria_pass === true) {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        color: "#3fb950", fontSize: 12, fontWeight: 700,
+        background: "rgba(63,185,80,0.12)", border: "1px solid rgba(63,185,80,0.4)",
+        borderRadius: 10, padding: "3px 10px",
+      }}>
+        ✓ 認証取得済み
+      </span>
+    );
+  }
+  if (all_criteria_pass === false) {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        color: "#d29922", fontSize: 12, fontWeight: 600,
+        background: "rgba(210,153,34,0.12)", border: "1px solid rgba(210,153,34,0.4)",
+        borderRadius: 10, padding: "3px 10px",
+      }}>
+        — 基準未達
+      </span>
+    );
+  }
+  return <span style={{ color: "#8b949e", fontSize: 12 }}>確認中</span>;
 }
+
+// ── Site row ──────────────────────────────────────────────────────────────────
 
 function SiteRow({ site }: { site: SiteAttestation }) {
   const [expanded, setExpanded] = useState(false);
@@ -52,83 +98,134 @@ function SiteRow({ site }: { site: SiteAttestation }) {
           borderLeft: isTampered ? "3px solid #f85149" : "3px solid transparent",
         }}
       >
-        <td style={{ fontFamily: "monospace", fontSize: 12, padding: "8px 12px" }}>
-          {site.site_id}
-          {isTampered && (
-            <span style={{
-              marginLeft: 8, fontSize: 10, fontWeight: 700,
-              background: "rgba(248,81,73,0.15)", color: "#f85149",
-              border: "1px solid rgba(248,81,73,0.4)", borderRadius: 8, padding: "1px 6px",
-            }}>
-              ⚠ PROOF INVALID
-            </span>
+        {/* Site name */}
+        <td style={{ padding: "12px 16px" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>{site.site_id}</div>
+          {att && (
+            <div style={{ fontSize: 11, color: "#8b949e", marginTop: 2 }}>
+              {CERT_DESCRIPTIONS[att.cert_level]}
+            </div>
           )}
         </td>
-        <td style={{ padding: "8px 12px" }}>
+
+        {/* Certification level */}
+        <td style={{ padding: "12px 16px" }}>
           {att ? <CertBadge level={att.cert_level} /> : <span style={{ color: "#8b949e", fontSize: 12 }}>—</span>}
         </td>
-        <td style={{ textAlign: "center", padding: "8px 12px" }}>
-          {att?.all_criteria_pass === true && !isTampered
-            ? <span style={{ color: "#3fb950", fontWeight: 700 }}>✓ PASS</span>
-            : att?.all_criteria_pass === true && isTampered
-            ? <span style={{ color: "#f85149", fontWeight: 700 }}>⚠ UNVERIFIED</span>
-            : att
-            ? <span style={{ color: "#f85149", fontWeight: 700 }}>✗ FAIL</span>
-            : <span style={{ color: "#8b949e" }}>—</span>}
+
+        {/* EUI */}
+        <td style={{ padding: "12px 16px", fontFamily: "monospace", fontSize: 13 }}>
+          {att ? (
+            <span style={{ color: att.all_criteria_pass ? "#e6edf3" : "#f85149" }}>
+              {att.eui_kwh_m2.toFixed(1)}
+            </span>
+          ) : "—"}
         </td>
-        <td style={{ textAlign: "center", fontSize: 12, padding: "8px 12px" }}>
-          {att?.cop_pass === true ? "✓" : att ? "✗" : "—"}
+
+        {/* Compliance status */}
+        <td style={{ padding: "12px 16px" }}>
+          <TrustBadge proof_valid={site.proof_valid} all_criteria_pass={att?.all_criteria_pass} />
         </td>
-        <td style={{ textAlign: "center", fontSize: 12, padding: "8px 12px" }}>
-          {att?.lpd_pass === true ? "✓" : att ? "✗" : "—"}
+
+        {/* Last verified */}
+        <td style={{ padding: "12px 16px", fontSize: 12, color: "#8b949e" }}>
+          {site.attested_at
+            ? site.attested_at.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" })
+              + " " + site.attested_at.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
+            : "—"}
         </td>
-        <td style={{ fontFamily: "monospace", fontSize: 12, padding: "8px 12px" }}>
-          {site.attested_at ? site.attested_at.toISOString().replace("T", " ").slice(0, 16) + " UTC" : "—"}
-        </td>
-        <td style={{ padding: "8px 12px" }}>
-          <ProofBadge proof_valid={site.proof_valid} />
-        </td>
-        <td style={{ color: "#58a6ff", fontSize: 12, padding: "8px 12px" }}>{expanded ? "▲" : "▼"}</td>
+
+        <td style={{ padding: "12px 16px", color: "#58a6ff", fontSize: 12 }}>{expanded ? "▲" : "▼"}</td>
       </tr>
+
+      {/* Expanded detail */}
       {expanded && (
         <tr>
-          <td colSpan={8} style={{ background: "rgba(88,166,255,0.04)", padding: "12px 16px", borderBottom: "1px solid #30363d" }}>
+          <td colSpan={6} style={{
+            background: isTampered ? "rgba(248,81,73,0.04)" : "rgba(88,166,255,0.03)",
+            padding: "16px 20px",
+            borderBottom: "1px solid #30363d",
+          }}>
             {att ? (
-              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "4px 12px", fontSize: 12 }}>
-                <span style={{ color: "#8b949e" }}>EUI</span>
-                <span style={{ fontFamily: "monospace" }}>{att.eui_kwh_m2.toFixed(1)} kWh/m²/year</span>
-                <span style={{ color: "#8b949e" }}>COP pass (≥ 0.65)</span>
-                <span style={{ color: att.cop_pass ? "#3fb950" : "#f85149" }}>{att.cop_pass ? "Yes" : "No"}</span>
-                <span style={{ color: "#8b949e" }}>LPD pass (≤ 15 W/m²)</span>
-                <span style={{ color: att.lpd_pass ? "#3fb950" : "#f85149" }}>{att.lpd_pass ? "Yes" : "No"}</span>
-                <span style={{ color: "#8b949e" }}>ZK proof verification</span>
-                <span>
-                  {site.proof_valid === true  && <span style={{ color: "#3fb950" }}>✓ BLAKE3 hash matches public_values — proof authentic</span>}
-                  {site.proof_valid === false && (
-                    <span style={{ color: "#f85149" }}>
-                      ✗ BLAKE3 hash does NOT match — proof_bytes are tampered or forged.
-                      This record cannot be trusted regardless of the claimed cert_level.
+              <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+
+                {/* Criteria detail */}
+                <div>
+                  <div style={{ fontSize: 11, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+                    BCA基準チェック項目
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "6px 20px", fontSize: 13 }}>
+                    <span style={{ color: "#8b949e" }}>エネルギー使用強度（EUI）</span>
+                    <span style={{ color: att.cop_pass ? "#e6edf3" : "#f85149" }}>
+                      {att.eui_kwh_m2.toFixed(1)} kWh/m²/年
+                      <span style={{ marginLeft: 8, fontSize: 11, color: certLevelColor(att.cert_level) }}>
+                        ({certLevelLabel(att.cert_level)})
+                      </span>
                     </span>
-                  )}
-                  {site.proof_valid === null  && <span style={{ color: "#8b949e" }}>SP1 Groth16 verification pending WASM verifier integration</span>}
-                </span>
-                <span style={{ color: "#8b949e" }}>ZK framework</span>
-                <span style={{ fontFamily: "monospace" }}>mock (SP1 pending)</span>
-                <span style={{ color: "#8b949e" }}>Record hash</span>
-                <span style={{ fontFamily: "monospace", wordBreak: "break-all", color: "#8b949e", fontSize: 11 }}>
-                  {site.record_hash ?? "—"}
-                </span>
-                <span style={{ color: "#8b949e" }}>Raw sensor data</span>
-                <span style={{ color: "#3fb950" }}>Not exposed — stays on edge device ✓</span>
+
+                    <span style={{ color: "#8b949e" }}>冷凍機効率（COP）</span>
+                    <span style={{ color: att.cop_pass ? "#3fb950" : "#f85149" }}>
+                      {att.cop_pass ? "✓ 基準達成（≥ 0.65）" : "✗ 基準未達（< 0.65）"}
+                    </span>
+
+                    <span style={{ color: "#8b949e" }}>照明電力密度（LPD）</span>
+                    <span style={{ color: att.lpd_pass ? "#3fb950" : "#f85149" }}>
+                      {att.lpd_pass ? "✓ 基準達成（≤ 15 W/m²）" : "✗ 基準未達（> 15 W/m²）"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Data integrity */}
+                <div>
+                  <div style={{ fontSize: 11, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+                    データの信頼性
+                  </div>
+                  <div style={{ fontSize: 13 }}>
+                    {site.proof_valid === true && (
+                      <div style={{ color: "#3fb950" }}>
+                        ✓ 数値が改ざんされていないことを数学的に検証済み
+                        <div style={{ fontSize: 11, color: "#8b949e", marginTop: 4 }}>
+                          エネルギー計算の元データ（生センサー値）はエッジデバイス内に保持され、
+                          外部に送信されることなく、計算結果のみが認証記録として保存されています。
+                        </div>
+                      </div>
+                    )}
+                    {site.proof_valid === false && (
+                      <div style={{ color: "#f85149" }}>
+                        ⚠ 認証データの整合性が確認できません
+                        <div style={{ fontSize: 11, color: "#f85149", marginTop: 4, opacity: 0.8 }}>
+                          申告されている認証レベルと、実際の計算証明が一致していません。
+                          このデータに基づいて認証を発行することはできません。
+                        </div>
+                      </div>
+                    )}
+                    {site.proof_valid === null && (
+                      <div style={{ color: "#8b949e" }}>
+                        次世代の検証方式（SP1）への移行準備中です。現在は自動確認できません。
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Audit trail */}
+                <div>
+                  <div style={{ fontSize: 11, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+                    監査記録
+                  </div>
+                  <div style={{ fontSize: 12, color: "#8b949e" }}>
+                    <div>記録ID: <span style={{ fontFamily: "monospace", fontSize: 11 }}>{site.record_hash?.slice(0, 16) ?? "—"}…</span></div>
+                    <div style={{ marginTop: 4 }}>この記録は改ざん防止ストレージに保存されており、後から変更・削除することはできません。</div>
+                  </div>
+                </div>
               </div>
             ) : (
-              <span style={{ color: "#8b949e", fontSize: 12 }}>
+              <div style={{ color: "#8b949e", fontSize: 13 }}>
                 {site.error === "no runs"
-                  ? "No audit records found. Run clarus-edge with PROFILE=sg-bca-greenmark."
+                  ? "このサイトの認証記録がまだありません。"
                   : site.error === "no zk_proof in recent records"
-                  ? "No ZKP-bearing records in the most recent run."
-                  : `Error: ${site.error}`}
-              </span>
+                  ? "直近の記録に認証データが含まれていません。"
+                  : `データ取得エラー: ${site.error}`}
+              </div>
             )}
           </td>
         </tr>
@@ -137,29 +234,63 @@ function SiteRow({ site }: { site: SiteAttestation }) {
   );
 }
 
-// ── 4-quadrant legend ─────────────────────────────────────────────────────────
+// ── Summary banner ────────────────────────────────────────────────────────────
 
-function QuadrantLegend() {
-  const cell = (label: string, color: string, bg: string) => (
-    <div style={{
-      padding: "10px 14px", borderRadius: 6,
-      border: `1px solid ${color}44`,
-      background: bg, fontSize: 11,
-    }}>
-      <div style={{ fontWeight: 700, color, marginBottom: 3 }}>{label}</div>
-    </div>
-  );
+function SummaryBanner({ portfolio }: { portfolio: PortfolioAttestation }) {
+  const tamperCount  = portfolio.sites.filter(s => s.proof_valid === false).length;
+  const passCount    = portfolio.pass_count;
+  const total        = portfolio.total_count;
+  const honestTotal  = total - tamperCount;
+
+  if (tamperCount > 0) {
+    return (
+      <div style={{
+        display: "flex", gap: 16, padding: "16px 20px", borderRadius: 10, marginBottom: 20,
+        border: "1px solid rgba(248,81,73,0.5)", background: "rgba(248,81,73,0.07)",
+      }}>
+        <span style={{ fontSize: 24, lineHeight: 1 }}>🚨</span>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#f85149" }}>
+            {tamperCount}件のデータ申告に問題が検出されました
+          </div>
+          <div style={{ fontSize: 13, color: "#8b949e", marginTop: 4 }}>
+            信頼性が確認できた {honestTotal} 件のうち、{passCount} 件が BCA Green Mark 基準を満たしています。
+            問題のある申告は認証対象から除外されます。
+          </div>
+        </div>
+        <div style={{ marginLeft: "auto", alignSelf: "center", fontSize: 11, color: "#d29922",
+          background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.3)",
+          padding: "4px 12px", borderRadius: 12, whiteSpace: "nowrap" }}>
+          🔒 記録は削除・変更不可
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 6 }}>
-        E2E test matrix — all 4 quadrants of ZKP computation × BCA criteria:
+    <div style={{
+      display: "flex", gap: 16, padding: "16px 20px", borderRadius: 10, marginBottom: 20,
+      border: portfolio.all_pass
+        ? "1px solid rgba(63,185,80,0.4)" : "1px solid rgba(210,153,34,0.4)",
+      background: portfolio.all_pass
+        ? "rgba(63,185,80,0.07)" : "rgba(210,153,34,0.07)",
+    }}>
+      <span style={{ fontSize: 24, lineHeight: 1 }}>{portfolio.all_pass ? "✅" : "⚠️"}</span>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>
+          {portfolio.all_pass
+            ? `全 ${total} 件が BCA Green Mark 基準を達成しています`
+            : `${total} 件中 ${passCount} 件が BCA Green Mark 基準を達成しています`}
+        </div>
+        <div style={{ fontSize: 13, color: "#8b949e", marginTop: 4 }}>
+          すべての認証データの整合性が確認されています ·
+          確認日時: {portfolio.generated_at.toLocaleString("ja-JP")}
+        </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, maxWidth: 560 }}>
-        {cell("Q1 ✓ Correct calc + Passes BCA GM",   "#3fb950", "rgba(63,185,80,0.06)")}
-        {cell("Q2 ✓ Correct calc + Fails BCA GM",    "#d29922", "rgba(210,153,34,0.06)")}
-        {cell("Q3 ✗ Tampered ZKP + Claims PASS → fraud detected",  "#f85149", "rgba(248,81,73,0.06)")}
-        {cell("Q4 ✗ Tampered ZKP + Claims FAIL → sabotage detected", "#f85149", "rgba(248,81,73,0.06)")}
+      <div style={{ marginLeft: "auto", alignSelf: "center", fontSize: 11, color: "#d29922",
+        background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.3)",
+        padding: "4px 12px", borderRadius: 12, whiteSpace: "nowrap" }}>
+        🔒 記録は削除・変更不可
       </div>
     </div>
   );
@@ -178,24 +309,20 @@ export function AttestationView({ operators }: Props) {
   const [portfolio, setPortfolio]         = useState<PortfolioAttestation | null>(null);
   const [loading, setLoading]             = useState(false);
 
-  // Fetch registry from R2 on mount
   useEffect(() => {
     fetchBcaSiteRegistry()
       .then(setRegistry)
       .catch(e => setRegistryError(String(e)));
   }, []);
 
-  // Derive operator → site_id mapping from registry
   const operatorSiteMap = registry ? sitesByOperator(registry) : {};
 
-  // Set default operator from registry once loaded
   useEffect(() => {
-    if (registry && registry.sites.length > 0 && !operatorSiteMap[selectedOperator]) {
-      setSelectedOperator(Object.keys(operatorSiteMap)[0]);
+    if (registry && !operatorSiteMap[selectedOperator]) {
+      setSelectedOperator(Object.keys(operatorSiteMap)[0] ?? selectedOperator);
     }
   }, [registry]);
 
-  // Fetch attestations whenever selected operator changes
   useEffect(() => {
     const siteIds = operatorSiteMap[selectedOperator];
     if (!siteIds?.length) return;
@@ -206,149 +333,91 @@ export function AttestationView({ operators }: Props) {
       .finally(() => setLoading(false));
   }, [selectedOperator, registry]);
 
-  const tamperCount = portfolio?.sites.filter(s => s.proof_valid === false).length ?? 0;
-
   return (
-    <div style={{ padding: "24px", maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ padding: "24px", maxWidth: 1000, margin: "0 auto" }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
-            BCA Green Mark — ZKP Portfolio Attestation
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+            BCA Green Mark 認証ポートフォリオ
           </h2>
           <span style={{
             background: "rgba(63,185,80,0.1)", color: "#3fb950",
             border: "1px solid rgba(63,185,80,0.3)", borderRadius: 12,
             fontSize: 11, fontWeight: 700, padding: "2px 10px",
           }}>
-            WORM-sealed · proof-backed
+            改ざん防止記録
           </span>
-          {registry && (
-            <span style={{
-              background: "rgba(88,166,255,0.1)", color: "#58a6ff",
-              border: "1px solid rgba(88,166,255,0.3)", borderRadius: 12,
-              fontSize: 11, padding: "2px 10px",
-            }}>
-              {registry.sites.length} sites from R2 registry
-            </span>
-          )}
         </div>
-        <p style={{ fontSize: 12, color: "#8b949e", margin: 0 }}>
-          Compliance status derived from ZKP proofs in the clarus WORM audit chain.
-          Raw sensor data (EUI readings, occupancy, area) never transmitted — only the mathematical attestation is read.
-          Proof bytes verified in-browser via BLAKE3.
+        <p style={{ fontSize: 13, color: "#8b949e", margin: 0, lineHeight: 1.6 }}>
+          エッジデバイスが収集したエネルギーデータをもとに、BCA Green Mark 2021 の基準適合状況を自動で検証します。
+          生の計測値は外部に送信されず、計算結果の正当性のみが改ざん不可能な記録として保存されます。
         </p>
       </div>
 
-      {/* Registry error */}
       {registryError && (
-        <div style={{ color: "#f85149", fontSize: 12, marginBottom: 12 }}>
-          Registry fetch failed: {registryError}
+        <div style={{ color: "#f85149", fontSize: 13, marginBottom: 16 }}>
+          サイト一覧の取得に失敗しました: {registryError}
         </div>
       )}
 
-      {/* E2E 4-quadrant legend */}
-      <QuadrantLegend />
-
-      {/* Operator selector — driven by registry */}
-      <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-        <label style={{ fontSize: 12, color: "#8b949e" }}>Operator</label>
+      {/* Operator selector */}
+      <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+        <label style={{ fontSize: 13, color: "#8b949e" }}>事業者</label>
         <select
           value={selectedOperator}
           onChange={e => setSelectedOperator(e.target.value)}
           style={{
             background: "#0d1117", border: "1px solid #30363d", color: "#e6edf3",
-            fontSize: 13, padding: "5px 10px", borderRadius: 6, outline: "none", cursor: "pointer",
+            fontSize: 13, padding: "6px 12px", borderRadius: 6, outline: "none", cursor: "pointer",
           }}
         >
           {Object.entries(operatorSiteMap).map(([opId, sites]) => (
             <option key={opId} value={opId}>
-              {opId} ({sites.length} sites)
+              {opId}（{sites.length} サイト）
             </option>
           ))}
-          {/* Fallback options if registry not loaded */}
           {!registry && operators.map(op => (
             <option key={op.operator_id} value={op.operator_id}>
-              {op.operator_id} ({op.site_count} sites)
+              {op.operator_id}（{op.site_count} サイト）
             </option>
           ))}
         </select>
-        {registry && (
-          <span style={{ fontSize: 11, color: "#8b949e" }}>
-            (source: R2 registry/bca-sites.json)
-          </span>
-        )}
       </div>
 
       {/* Summary banner */}
-      {portfolio && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 16,
-          padding: "12px 18px", borderRadius: 8, marginBottom: 16,
-          border: tamperCount > 0
-            ? "1px solid rgba(248,81,73,0.6)"
-            : portfolio.all_pass
-            ? "1px solid rgba(63,185,80,0.4)" : "1px solid rgba(210,153,34,0.4)",
-          background: tamperCount > 0
-            ? "rgba(248,81,73,0.07)"
-            : portfolio.all_pass
-            ? "rgba(63,185,80,0.07)" : "rgba(210,153,34,0.07)",
-        }}>
-          <span style={{ fontSize: 22 }}>
-            {tamperCount > 0 ? "🚨" : portfolio.all_pass ? "✅" : "⚠️"}
-          </span>
-          <div>
-            {tamperCount > 0 ? (
-              <>
-                <div style={{ fontWeight: 700, fontSize: 15, color: "#f85149" }}>
-                  {tamperCount} tampered/forged proof{tamperCount > 1 ? "s" : ""} detected — ZKP verification failed
-                </div>
-                <div style={{ fontSize: 12, color: "#8b949e", marginTop: 2 }}>
-                  {portfolio.pass_count}/{portfolio.total_count - tamperCount} honest sites pass BCA Green Mark · {tamperCount} rejected due to invalid proof
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>
-                  {portfolio.all_pass
-                    ? `Portfolio compliant — ${portfolio.pass_count}/${portfolio.total_count} sites pass BCA Green Mark`
-                    : `${portfolio.pass_count}/${portfolio.total_count} sites passing BCA Green Mark criteria`}
-                </div>
-                <div style={{ fontSize: 12, color: "#8b949e", marginTop: 2 }}>
-                  All proofs verified · Generated {portfolio.generated_at.toISOString().replace("T", " ").slice(0, 19)} UTC
-                </div>
-              </>
-            )}
-          </div>
-          <div style={{ marginLeft: "auto", fontSize: 11, color: "#d29922",
-            background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.3)",
-            padding: "4px 10px", borderRadius: 12 }}>
-            🔒 Object Lock · deletion not possible
-          </div>
-        </div>
-      )}
+      {portfolio && <SummaryBanner portfolio={portfolio} />}
 
-      {/* Loading state */}
+      {/* Loading */}
       {loading && (
-        <div style={{ color: "#8b949e", fontSize: 13, padding: "40px 0", textAlign: "center" }}>
-          Fetching ZKP attestations from clarus WORM chain…
+        <div style={{ color: "#8b949e", fontSize: 13, padding: "48px 0", textAlign: "center" }}>
+          認証記録を確認中…
         </div>
       )}
 
       {/* Site table */}
       {portfolio && !loading && (
         <div style={{
-          background: "#161b22", border: "1px solid #30363d", borderRadius: 8, overflow: "hidden",
+          background: "#161b22", border: "1px solid #30363d", borderRadius: 10, overflow: "hidden",
         }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #30363d" }}>
-                {["Site ID", "Cert Level", "All Criteria", "COP", "LPD", "Attested At", "ZKP Proof", ""].map(h => (
-                  <th key={h} style={{
+                {[
+                  { label: "サイト", width: "auto" },
+                  { label: "認証レベル", width: 140 },
+                  { label: "EUI (kWh/m²/年)", width: 130 },
+                  { label: "認証ステータス", width: 160 },
+                  { label: "最終確認日時", width: 130 },
+                  { label: "", width: 32 },
+                ].map(({ label, width }) => (
+                  <th key={label} style={{
                     fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em",
-                    color: "#8b949e", padding: "8px 12px", textAlign: "left",
-                  }}>{h}</th>
+                    color: "#8b949e", padding: "10px 16px", textAlign: "left", width,
+                  }}>
+                    {label}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -361,25 +430,22 @@ export function AttestationView({ operators }: Props) {
         </div>
       )}
 
-      {/* API link */}
-      <div style={{ marginTop: 16, fontSize: 11, color: "#8b949e" }}>
-        API:{" "}
+      {/* Note at bottom */}
+      <div style={{
+        marginTop: 20, padding: "12px 16px",
+        background: "rgba(88,166,255,0.04)", border: "1px solid rgba(88,166,255,0.15)",
+        borderRadius: 8, fontSize: 12, color: "#8b949e", lineHeight: 1.6,
+      }}>
+        <span style={{ color: "#58a6ff", fontWeight: 600 }}>ℹ 仕組みについて</span>
+        {" "}各サイトのエッジデバイスが計算した認証結果は、数学的証明とともに改ざん防止ストレージに記録されます。
+        第三者機関（BCA）はこの記録を参照することで、生の計測データを受け取ることなく認証の正当性を確認できます。
         <a
           href={`/api/bca-portfolio/${encodeURIComponent(selectedOperator)}`}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: "#58a6ff" }}
+          style={{ color: "#58a6ff", marginLeft: 8 }}
         >
-          /api/bca-portfolio/{selectedOperator}
-        </a>
-        {" · "}
-        <a
-          href="https://clarus.edgesentry.io/data/raw/registry/bca-sites.json"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: "#58a6ff" }}
-        >
-          registry/bca-sites.json
+          JSON形式で出力 →
         </a>
       </div>
     </div>
