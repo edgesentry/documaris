@@ -9,6 +9,7 @@ import init, {
   seal,
 } from "../wasm-pkg/edgesentry_wasm.js";
 import { SG_PORT_COMPLIANCE_RULES } from "./fixtures.js";
+import { enrichBcaHtml } from "./bca-attestation.js";
 
 export interface FieldValue {
   value: string | null;
@@ -50,6 +51,7 @@ export interface PipelineResult {
   payloadHash: string;
   durationMs: number;
 }
+
 
 // Demo signing key (public key visible in UI — this is a demo, not a secret)
 const DEMO_PRIVATE_KEY =
@@ -106,6 +108,8 @@ export interface BcaPipelineResult {
   filled: FilledDocument;
   alerts: ComplianceAlert[];
   html: string;
+  /** HTML enriched with ZKP attestation section from clarus. */
+  htmlWithAttestation: string;
   auditRecord: AuditRecord;
   payloadHash: string;
   durationMs: number;
@@ -173,7 +177,10 @@ export const BCA_GREEN_MARK_RULES = JSON.stringify([
   },
 ]);
 
-export async function runBcaPipeline(csv: string): Promise<BcaPipelineResult> {
+export async function runBcaPipeline(
+  csv: string,
+  siteId?: string,
+): Promise<BcaPipelineResult> {
   // Architecture proof: steps 3–5 are byte-for-byte identical to runPipeline().
   // Only parse_bca_csv → fill_bca → render_html("sg-bca-greenmark") differ.
   // check(), build_audit_payload(), seal() are profile-agnostic.
@@ -212,6 +219,12 @@ export async function runBcaPipeline(csv: string): Promise<BcaPipelineResult> {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
+  // 6. Enrich HTML with ZKP attestation section from clarus (non-blocking)
+  const resolvedSiteId = siteId ?? filled.fields["OUTLET_ID"]?.value ?? "";
+  const htmlWithAttestation = resolvedSiteId
+    ? await enrichBcaHtml(html, resolvedSiteId)
+    : html;
+
   const durationMs = Math.round(performance.now() - t0);
-  return { filled: filledWithReview, alerts, html, auditRecord, payloadHash, durationMs };
+  return { filled: filledWithReview, alerts, html, htmlWithAttestation, auditRecord, payloadHash, durationMs };
 }
