@@ -176,7 +176,7 @@ export const BCA_GREEN_MARK_RULES = JSON.stringify([
 
 export async function runBcaPipeline(
   csv: string,
-  siteId?: string,
+  _siteId?: string,
 ): Promise<BcaPipelineResult> {
   // Architecture proof: steps 3–5 are byte-for-byte identical to runPipeline().
   // Only parse_bca_csv → fill_bca → render_html("sg-bca-greenmark") differ.
