@@ -6,7 +6,7 @@
  * If clarus changes GreenMarkAttestation or ZkProof, this test fails,
  * forcing a documaris update before the divergence reaches production.
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import Ajv from "ajv/dist/2020.js";
 import { readFileSync } from "fs";
 import { resolve } from "path";
