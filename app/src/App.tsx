@@ -118,7 +118,7 @@ export default function App() {
     setBcaPhase({ tag: "generating", site });
     try {
       const scenario: BcaScenario = siteSummaryToBcaScenario(site);
-      const result = await runBcaPipeline(scenario.csv);
+      const result = await runBcaPipeline(scenario.csv, site.outlet_id);
       setBcaPhase({ tag: "result", site, result });
     } catch (e) {
       setBcaPhase({ tag: "error", message: String(e), back: "operator", operator });
@@ -282,7 +282,7 @@ export default function App() {
               <h2>BCA Green Mark — Section 4</h2>
               <div
                 className="fal-form"
-                dangerouslySetInnerHTML={{ __html: bcaResult.html }}
+                dangerouslySetInnerHTML={{ __html: bcaResult.htmlWithAttestation }}
               />
             </section>
           </div>
