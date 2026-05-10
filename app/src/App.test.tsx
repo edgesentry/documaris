@@ -147,7 +147,6 @@ const MOCK_BCA_RESULT: BcaPipelineResult = {
   },
   alerts: [],
   html: "<table><tr><td>BCA Green Mark Section 4</td></tr></table>",
-  htmlWithAttestation: "<table><tr><td>BCA Green Mark Section 4</td></tr></table>",
   auditRecord: {
     device_id: "documaris-demo", sequence: 1, timestamp_ms: 0,
     payload_hash: [], signature: [], prev_record_hash: [],
