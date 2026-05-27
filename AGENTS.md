@@ -2,7 +2,7 @@
 
 Multi-profile document generation and compliance automation platform. documaris produces regulatory compliance documents from structured sensor or operational data, checks them against profile-specific rules, and signs them with a cryptographic audit trail.
 
-Supported profiles: `fal-form-1` / `fal-form-5` (maritime port call, PIER71), `sg-bca-greenmark` (BCA Green Mark Section 4, BEAMP). Same pipeline core — only the parser, field map, HTML template, and rules differ per profile.
+Supported profiles: `fal-form-1` / `fal-form-5` (maritime port call, PIER71), `sg-bca-greenmark` (BCA Green Mark Section 4, BEAMP), `port-cyber-clearance` (Cap Vista cyber clearance from indago `*_facts.json`). Same pipeline core — only the parser, field map, HTML template, and rules differ per profile.
 
 ## Responsibility boundary
 
@@ -45,6 +45,9 @@ so recipients can independently verify without going through documaris.
 | `functions/data/[[path]].js` | Cloudflare Pages Function — serves `documaris-dev-public-analytics` R2 at `/data/analytics/*` |
 | `scripts/generate-bca-fixtures.ts` | Generates synthetic BCA outlet Parquet (45 sites, 3 operators) and uploads to R2 |
 | `field_maps/` | JSON field map contracts per form type |
+| `fixtures/clearance/` | indago `*_facts.json` for port cyber clearance (hold/clean) |
+| `templates/port-cyber-clearance.md` | W5 spec; HTML in edgesentry-rs `edgesentry-document/templates/` |
+| `dist/` | Sample clearance HTML for Cap Vista deck (G5) |
 | `schemas/` | JSON Schema for indago vessel record contract |
 | `mock/` | Sample vessel records for local testing |
 | `tests/` | pytest — schema contract + field map validation |
