@@ -16,3 +16,6 @@ test = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: opt-in tests requiring built eds binary",
+]

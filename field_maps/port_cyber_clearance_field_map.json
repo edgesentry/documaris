@@ -1,0 +1,62 @@
+{
+  "_schema_version": "0.1.0",
+  "_reference": "Cap Vista Port Cyber Clearance — indago maritime_cyber evaluation facts",
+  "_source": "indago pipelines/maritime_cyber/eval.py write_evaluation_artifacts → *_facts.json",
+  "_template_id": "port-cyber-clearance",
+  "_render_engine": "edgesentry-document (HTML placeholder substitution)",
+
+  "fields": [
+    {
+      "field_key": "VESSEL_KEY",
+      "fill_type": "direct",
+      "facts_source": "vessel_key",
+      "notes": "Fixture vessel identifier (vessel-hold, vessel-clean, vessel-thread)"
+    },
+    {
+      "field_key": "PORT_CALL_ID",
+      "fill_type": "direct",
+      "facts_source": "port_call_id"
+    },
+    {
+      "field_key": "OUTCOME",
+      "fill_type": "computed",
+      "facts_source": "outcome",
+      "notes": "pass | hold — uppercase in rendered PDF"
+    },
+    {
+      "field_key": "DECISION_HASH",
+      "fill_type": "direct",
+      "facts_source": "decision_hash",
+      "notes": "BLAKE3 canonical hash of evaluation manifest body"
+    },
+    {
+      "field_key": "RULES_TABLE_ROWS",
+      "fill_type": "computed",
+      "facts_source": "rules_fired",
+      "notes": "HTML table rows from rules_fired[]"
+    },
+    {
+      "field_key": "PATHS_TABLE_ROWS",
+      "fill_type": "computed",
+      "facts_source": "paths",
+      "notes": "HTML table rows from cited graph paths"
+    },
+    {
+      "field_key": "CVE_IDS",
+      "fill_type": "direct",
+      "facts_source": "cve_ids"
+    },
+    {
+      "field_key": "VERIFY_URL",
+      "fill_type": "constant",
+      "facts_source": null,
+      "notes": "Passed at render time; W6 wires clarus / eds verify endpoint"
+    },
+    {
+      "field_key": "DISCLAIMER",
+      "fill_type": "direct",
+      "facts_source": "disclaimer",
+      "notes": "PoC honesty — not MPA official approval"
+    }
+  ]
+}
